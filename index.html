@@ -1,791 +1,775 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="es">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2299.3">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Domotekan — Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #1D9E75;
+  --green-light: #E1F5EE;
+  --green-dark: #0F6E56;
+  --red: #D85A30;
+  --red-light: #FAECE7;
+  --amber: #BA7517;
+  --amber-light: #FAEEDA;
+  --blue: #185FA5;
+  --blue-light: #E6F1FB;
+  --bg: #F7F6F3;
+  --surface: #FFFFFF;
+  --border: rgba(0,0,0,0.08);
+  --border-strong: rgba(0,0,0,0.14);
+  --text: #1A1A18;
+  --text-2: #6B6B67;
+  --text-3: #9E9E99;
+  --sidebar-w: 224px;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* AUTH */
+#auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+.auth-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 40px;
+  width: 380px;
+}
+.auth-logo { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.auth-logo span { color: var(--green); }
+.auth-sub { font-size: 13px; color: var(--text-2); margin-bottom: 32px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.field input {
+  width: 100%; padding: 10px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; color: var(--text);
+  background: var(--bg);
+  outline: none; transition: border-color 0.15s;
+}
+.field input:focus { border-color: var(--green); background: #fff; }
+.btn-primary {
+  width: 100%; padding: 11px;
+  background: var(--green); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: background 0.15s;
+  margin-top: 8px;
+}
+.btn-primary:hover { background: var(--green-dark); }
+.auth-error { font-size: 12px; color: var(--red); margin-top: 10px; text-align: center; min-height: 18px; }
+
+/* LAYOUT */
+#app { display: none; min-height: 100vh; }
+.sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 0.5px solid var(--border);
+  display: flex; flex-direction: column;
+  z-index: 100;
+}
+.sidebar-logo {
+  padding: 20px 20px 16px;
+  border-bottom: 0.5px solid var(--border);
+}
+.logo-text { font-size: 18px; font-weight: 600; color: var(--text); }
+.logo-text span { color: var(--green); }
+.logo-role {
+  display: inline-block; margin-top: 6px;
+  font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 2px 8px; border-radius: 99px;
+  background: var(--green-light); color: var(--green-dark);
+}
+nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+.nav-section { font-size: 10px; color: var(--text-3); padding: 14px 20px 4px; text-transform: uppercase; letter-spacing: 0.07em; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px; font-size: 13px; color: var(--text-2);
+  cursor: pointer; transition: all 0.1s;
+  border-right: 2px solid transparent;
+}
+.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.active { background: var(--green-light); color: var(--green-dark); font-weight: 500; border-right-color: var(--green); }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+.sidebar-user {
+  padding: 14px 20px;
+  border-top: 0.5px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.user-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--green-light); color: var(--green-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; flex-shrink: 0;
+}
+.user-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.user-email { font-size: 11px; color: var(--text-3); }
+.logout-btn {
+  margin-left: auto; background: none; border: none;
+  color: var(--text-3); cursor: pointer; padding: 4px;
+  border-radius: 4px; transition: color 0.1s;
+}
+.logout-btn:hover { color: var(--red); }
+
+.main { margin-left: var(--sidebar-w); padding: 28px 32px; min-height: 100vh; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* TOPBAR */
+.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.topbar h1 { font-size: 20px; font-weight: 500; }
+.topbar-actions { display: flex; gap: 8px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface); color: var(--text);
+  transition: background 0.1s;
+}
+.btn:hover { background: var(--bg); }
+.btn-green { background: var(--green); color: #fff; border-color: var(--green); }
+.btn-green:hover { background: var(--green-dark); }
+.btn svg { width: 14px; height: 14px; }
+
+/* METRICS */
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.metric {
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: var(--radius); padding: 16px 20px;
+}
+.metric-label { font-size: 12px; color: var(--text-2); margin-bottom: 8px; }
+.metric-value { font-size: 28px; font-weight: 500; font-family: 'DM Mono', monospace; }
+.metric-value.green { color: var(--green); }
+.metric-value.red { color: var(--red); }
+.metric-sub { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
+/* SECTION */
+.section-title { font-size: 13px; font-weight: 500; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+
+/* TABLE */
+.table-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; background: var(--bg); border-bottom: 0.5px solid var(--border); }
+tbody tr { border-bottom: 0.5px solid var(--border); transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg); }
+td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: middle; }
+.server-name { font-weight: 500; font-size: 13px; }
+.server-id { font-size: 11px; color: var(--text-3); font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+/* BADGE */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 500;
+}
+.badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.badge.online { background: var(--green-light); color: var(--green-dark); }
+.badge.offline { background: var(--red-light); color: var(--red); }
+.badge.warn { background: var(--amber-light); color: var(--amber); }
+
+/* STAT */
+.stat { font-family: 'DM Mono', monospace; font-size: 12px; }
+.stat.warn { color: var(--amber); }
+.stat.danger { color: var(--red); }
+
+/* ACTION BTN */
+.action-btn {
+  background: none; border: none; font-family: inherit;
+  font-size: 12px; color: var(--green); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; border-radius: 4px; transition: background 0.1s;
+}
+.action-btn:hover { background: var(--green-light); }
+.action-btn.danger { color: var(--red); }
+.action-btn.danger:hover { background: var(--red-light); }
+
+/* BOTTOM GRID */
+.bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 20px; }
+
+/* INSTALLERS LIST */
+.installer-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 0.5px solid var(--border);
+}
+.installer-row:last-child { border-bottom: none; }
+.inst-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--blue-light); color: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; flex-shrink: 0;
+}
+.inst-name { font-size: 13px; font-weight: 500; }
+.inst-count { font-size: 11px; color: var(--text-3); }
+
+/* ALERTS LIST */
+.alert-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+.alert-row:last-child { border-bottom: none; }
+.alert-icon {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.alert-icon svg { width: 14px; height: 14px; }
+.alert-icon.warn { background: var(--amber-light); color: var(--amber); }
+.alert-icon.err { background: var(--red-light); color: var(--red); }
+.alert-text { font-size: 13px; color: var(--text); }
+.alert-time { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--surface); border-radius: 14px;
+  padding: 28px; width: 420px; max-width: 90vw;
+  transform: translateY(8px); transition: transform 0.2s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal h2 { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+.modal p { font-size: 13px; color: var(--text-2); margin-bottom: 20px; }
+.invite-link-box {
+  background: var(--bg); border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text);
+  word-break: break-all; margin-bottom: 12px;
+}
+.countdown { font-size: 13px; color: var(--red); font-weight: 500; text-align: center; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 40px 20px; color: var(--text-3); font-size: 13px; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--text); color: #fff;
+  padding: 10px 18px; border-radius: var(--radius-sm);
+  font-size: 13px; z-index: 300;
+  opacity: 0; transform: translateY(8px);
+  transition: all 0.2s; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* LOADING */
+.loading { text-align: center; padding: 60px; color: var(--text-3); }
+</style>
 </head>
 <body>
-<p class="p1">&lt;!DOCTYPE html&gt;</p>
-<p class="p1">&lt;html lang="es"&gt;</p>
-<p class="p1">&lt;head&gt;</p>
-<p class="p1">&lt;meta charset="UTF-8"&gt;</p>
-<p class="p1">&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</p>
-<p class="p1">&lt;title&gt;Domotekan — Panel&lt;/title&gt;</p>
-<p class="p1">&lt;script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"&gt;&lt;/script&gt;</p>
-<p class="p1">&lt;link rel="preconnect" href="https://fonts.googleapis.com"&gt;</p>
-<p class="p1">&lt;link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&amp;family=DM+Mono:wght@400;500&amp;display=swap" rel="stylesheet"&gt;</p>
-<p class="p1">&lt;style&gt;</p>
-<p class="p1">:root {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--green: #1D9E75;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--green-light: #E1F5EE;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--green-dark: #0F6E56;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--red: #D85A30;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--red-light: #FAECE7;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--amber: #BA7517;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--amber-light: #FAEEDA;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--blue: #185FA5;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--blue-light: #E6F1FB;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--bg: #F7F6F3;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--surface: #FFFFFF;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--border: rgba(0,0,0,0.08);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--border-strong: rgba(0,0,0,0.14);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--text: #1A1A18;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--text-2: #6B6B67;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--text-3: #9E9E99;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--sidebar-w: 224px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--radius: 10px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>--radius-sm: 6px;</p>
-<p class="p1">}</p>
-<p class="p1">*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }</p>
-<p class="p1">html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* AUTH */</p>
-<p class="p1">#auth-screen {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>min-height: 100vh;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: flex;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>align-items: center;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>justify-content: center;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--bg);</p>
-<p class="p1">}</p>
-<p class="p1">.auth-card {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--surface);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border: 0.5px solid var(--border-strong);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border-radius: 16px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 40px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>width: 380px;</p>
-<p class="p1">}</p>
-<p class="p1">.auth-logo { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; }</p>
-<p class="p1">.auth-logo span { color: var(--green); }</p>
-<p class="p1">.auth-sub { font-size: 13px; color: var(--text-2); margin-bottom: 32px; }</p>
-<p class="p1">.field { margin-bottom: 16px; }</p>
-<p class="p1">.field label { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }</p>
-<p class="p1">.field input {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>width: 100%; padding: 10px 14px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border: 0.5px solid var(--border-strong);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border-radius: var(--radius-sm);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>font-family: inherit; font-size: 14px; color: var(--text);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--bg);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>outline: none; transition: border-color 0.15s;</p>
-<p class="p1">}</p>
-<p class="p1">.field input:focus { border-color: var(--green); background: #fff; }</p>
-<p class="p1">.btn-primary {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>width: 100%; padding: 11px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--green); color: #fff;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border: none; border-radius: var(--radius-sm);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>font-family: inherit; font-size: 14px; font-weight: 500;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>cursor: pointer; transition: background 0.15s;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>margin-top: 8px;</p>
-<p class="p1">}</p>
-<p class="p1">.btn-primary:hover { background: var(--green-dark); }</p>
-<p class="p1">.auth-error { font-size: 12px; color: var(--red); margin-top: 10px; text-align: center; min-height: 18px; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* LAYOUT */</p>
-<p class="p1">#app { display: none; min-height: 100vh; }</p>
-<p class="p1">.sidebar {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>position: fixed; left: 0; top: 0; bottom: 0;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>width: var(--sidebar-w);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--surface);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border-right: 0.5px solid var(--border);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: flex; flex-direction: column;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>z-index: 100;</p>
-<p class="p1">}</p>
-<p class="p1">.sidebar-logo {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 20px 20px 16px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border-bottom: 0.5px solid var(--border);</p>
-<p class="p1">}</p>
-<p class="p1">.logo-text { font-size: 18px; font-weight: 600; color: var(--text); }</p>
-<p class="p1">.logo-text span { color: var(--green); }</p>
-<p class="p1">.logo-role {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: inline-block; margin-top: 6px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 2px 8px; border-radius: 99px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--green-light); color: var(--green-dark);</p>
-<p class="p1">}</p>
-<p class="p1">nav { flex: 1; padding: 12px 0; overflow-y: auto; }</p>
-<p class="p1">.nav-section { font-size: 10px; color: var(--text-3); padding: 14px 20px 4px; text-transform: uppercase; letter-spacing: 0.07em; }</p>
-<p class="p1">.nav-item {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: flex; align-items: center; gap: 10px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 9px 20px; font-size: 13px; color: var(--text-2);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>cursor: pointer; transition: all 0.1s;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border-right: 2px solid transparent;</p>
-<p class="p1">}</p>
-<p class="p1">.nav-item:hover { background: var(--bg); color: var(--text); }</p>
-<p class="p1">.nav-item.active { background: var(--green-light); color: var(--green-dark); font-weight: 500; border-right-color: var(--green); }</p>
-<p class="p1">.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }</p>
-<p class="p1">.sidebar-user {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 14px 20px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border-top: 0.5px solid var(--border);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: flex; align-items: center; gap: 10px;</p>
-<p class="p1">}</p>
-<p class="p1">.user-avatar {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>width: 30px; height: 30px; border-radius: 50%;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--green-light); color: var(--green-dark);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: flex; align-items: center; justify-content: center;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>font-size: 11px; font-weight: 600; flex-shrink: 0;</p>
-<p class="p1">}</p>
-<p class="p1">.user-name { font-size: 13px; font-weight: 500; color: var(--text); }</p>
-<p class="p1">.user-email { font-size: 11px; color: var(--text-3); }</p>
-<p class="p1">.logout-btn {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>margin-left: auto; background: none; border: none;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>color: var(--text-3); cursor: pointer; padding: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border-radius: 4px; transition: color 0.1s;</p>
-<p class="p1">}</p>
-<p class="p1">.logout-btn:hover { color: var(--red); }</p>
-<p class="p2"><br></p>
-<p class="p1">.main { margin-left: var(--sidebar-w); padding: 28px 32px; min-height: 100vh; }</p>
-<p class="p1">.page { display: none; }</p>
-<p class="p1">.page.active { display: block; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* TOPBAR */</p>
-<p class="p1">.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }</p>
-<p class="p1">.topbar h1 { font-size: 20px; font-weight: 500; }</p>
-<p class="p1">.topbar-actions { display: flex; gap: 8px; }</p>
-<p class="p1">.btn {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: inline-flex; align-items: center; gap: 6px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 8px 14px; border-radius: var(--radius-sm);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>font-family: inherit; font-size: 13px; cursor: pointer;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border: 0.5px solid var(--border-strong);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--surface); color: var(--text);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>transition: background 0.1s;</p>
-<p class="p1">}</p>
-<p class="p1">.btn:hover { background: var(--bg); }</p>
-<p class="p1">.btn-green { background: var(--green); color: #fff; border-color: var(--green); }</p>
-<p class="p1">.btn-green:hover { background: var(--green-dark); }</p>
-<p class="p1">.btn svg { width: 14px; height: 14px; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* METRICS */</p>
-<p class="p1">.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }</p>
-<p class="p1">.metric {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--surface); border: 0.5px solid var(--border);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border-radius: var(--radius); padding: 16px 20px;</p>
-<p class="p1">}</p>
-<p class="p1">.metric-label { font-size: 12px; color: var(--text-2); margin-bottom: 8px; }</p>
-<p class="p1">.metric-value { font-size: 28px; font-weight: 500; font-family: 'DM Mono', monospace; }</p>
-<p class="p1">.metric-value.green { color: var(--green); }</p>
-<p class="p1">.metric-value.red { color: var(--red); }</p>
-<p class="p1">.metric-sub { font-size: 11px; color: var(--text-3); margin-top: 4px; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* SECTION */</p>
-<p class="p1">.section-title { font-size: 13px; font-weight: 500; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* TABLE */</p>
-<p class="p1">.table-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }</p>
-<p class="p1">.table-wrap { overflow-x: auto; }</p>
-<p class="p1">table { width: 100%; border-collapse: collapse; }</p>
-<p class="p1">thead th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; background: var(--bg); border-bottom: 0.5px solid var(--border); }</p>
-<p class="p1">tbody tr { border-bottom: 0.5px solid var(--border); transition: background 0.1s; }</p>
-<p class="p1">tbody tr:last-child { border-bottom: none; }</p>
-<p class="p1">tbody tr:hover { background: var(--bg); }</p>
-<p class="p1">td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: middle; }</p>
-<p class="p1">.server-name { font-weight: 500; font-size: 13px; }</p>
-<p class="p1">.server-id { font-size: 11px; color: var(--text-3); font-family: 'DM Mono', monospace; margin-top: 2px; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* BADGE */</p>
-<p class="p1">.badge {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: inline-flex; align-items: center; gap: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 500;</p>
-<p class="p1">}</p>
-<p class="p1">.badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }</p>
-<p class="p1">.badge.online { background: var(--green-light); color: var(--green-dark); }</p>
-<p class="p1">.badge.offline { background: var(--red-light); color: var(--red); }</p>
-<p class="p1">.badge.warn { background: var(--amber-light); color: var(--amber); }</p>
-<p class="p2"><br></p>
-<p class="p1">/* STAT */</p>
-<p class="p1">.stat { font-family: 'DM Mono', monospace; font-size: 12px; }</p>
-<p class="p1">.stat.warn { color: var(--amber); }</p>
-<p class="p1">.stat.danger { color: var(--red); }</p>
-<p class="p2"><br></p>
-<p class="p1">/* ACTION BTN */</p>
-<p class="p1">.action-btn {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: none; border: none; font-family: inherit;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>font-size: 12px; color: var(--green); cursor: pointer;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: inline-flex; align-items: center; gap: 4px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 4px 8px; border-radius: 4px; transition: background 0.1s;</p>
-<p class="p1">}</p>
-<p class="p1">.action-btn:hover { background: var(--green-light); }</p>
-<p class="p1">.action-btn.danger { color: var(--red); }</p>
-<p class="p1">.action-btn.danger:hover { background: var(--red-light); }</p>
-<p class="p2"><br></p>
-<p class="p1">/* BOTTOM GRID */</p>
-<p class="p1">.bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }</p>
-<p class="p1">.card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 20px; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* INSTALLERS LIST */</p>
-<p class="p1">.installer-row {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: flex; align-items: center; justify-content: space-between;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 10px 0; border-bottom: 0.5px solid var(--border);</p>
-<p class="p1">}</p>
-<p class="p1">.installer-row:last-child { border-bottom: none; }</p>
-<p class="p1">.inst-avatar {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>width: 28px; height: 28px; border-radius: 50%;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--blue-light); color: var(--blue);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: flex; align-items: center; justify-content: center;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>font-size: 10px; font-weight: 600; flex-shrink: 0;</p>
-<p class="p1">}</p>
-<p class="p1">.inst-name { font-size: 13px; font-weight: 500; }</p>
-<p class="p1">.inst-count { font-size: 11px; color: var(--text-3); }</p>
-<p class="p2"><br></p>
-<p class="p1">/* ALERTS LIST */</p>
-<p class="p1">.alert-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }</p>
-<p class="p1">.alert-row:last-child { border-bottom: none; }</p>
-<p class="p1">.alert-icon {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>width: 28px; height: 28px; border-radius: var(--radius-sm);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: flex; align-items: center; justify-content: center; flex-shrink: 0;</p>
-<p class="p1">}</p>
-<p class="p1">.alert-icon svg { width: 14px; height: 14px; }</p>
-<p class="p1">.alert-icon.warn { background: var(--amber-light); color: var(--amber); }</p>
-<p class="p1">.alert-icon.err { background: var(--red-light); color: var(--red); }</p>
-<p class="p1">.alert-text { font-size: 13px; color: var(--text); }</p>
-<p class="p1">.alert-time { font-size: 11px; color: var(--text-3); margin-top: 2px; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* MODAL */</p>
-<p class="p1">.modal-overlay {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>position: fixed; inset: 0; background: rgba(0,0,0,0.3);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>display: flex; align-items: center; justify-content: center;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.2s;</p>
-<p class="p1">}</p>
-<p class="p1">.modal-overlay.open { opacity: 1; pointer-events: all; }</p>
-<p class="p1">.modal {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--surface); border-radius: 14px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 28px; width: 420px; max-width: 90vw;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>transform: translateY(8px); transition: transform 0.2s;</p>
-<p class="p1">}</p>
-<p class="p1">.modal-overlay.open .modal { transform: translateY(0); }</p>
-<p class="p1">.modal h2 { font-size: 16px; font-weight: 500; margin-bottom: 6px; }</p>
-<p class="p1">.modal p { font-size: 13px; color: var(--text-2); margin-bottom: 20px; }</p>
-<p class="p1">.invite-link-box {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--bg); border: 0.5px solid var(--border-strong);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>border-radius: var(--radius-sm); padding: 12px 14px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>word-break: break-all; margin-bottom: 12px;</p>
-<p class="p1">}</p>
-<p class="p1">.countdown { font-size: 13px; color: var(--red); font-weight: 500; text-align: center; margin-bottom: 16px; }</p>
-<p class="p1">.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* EMPTY */</p>
-<p class="p1">.empty { text-align: center; padding: 40px 20px; color: var(--text-3); font-size: 13px; }</p>
-<p class="p2"><br></p>
-<p class="p1">/* TOAST */</p>
-<p class="p1">.toast {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>position: fixed; bottom: 24px; right: 24px;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>background: var(--text); color: #fff;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>padding: 10px 18px; border-radius: var(--radius-sm);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>font-size: 13px; z-index: 300;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>opacity: 0; transform: translateY(8px);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>transition: all 0.2s; pointer-events: none;</p>
-<p class="p1">}</p>
-<p class="p1">.toast.show { opacity: 1; transform: translateY(0); }</p>
-<p class="p2"><br></p>
-<p class="p1">/* LOADING */</p>
-<p class="p1">.loading { text-align: center; padding: 60px; color: var(--text-3); }</p>
-<p class="p1">&lt;/style&gt;</p>
-<p class="p1">&lt;/head&gt;</p>
-<p class="p1">&lt;body&gt;</p>
-<p class="p2"><br></p>
-<p class="p1">&lt;!-- AUTH --&gt;</p>
-<p class="p1">&lt;div id="auth-screen"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;div class="auth-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="auth-logo"&gt;domo&lt;span&gt;tekan&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="auth-sub"&gt;Panel de control · Acceso profesional&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="field"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;label&gt;Email&lt;/label&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;input type="email" id="auth-email" placeholder="tu@domotekan.com" autocomplete="email"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="field"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;label&gt;Contraseña&lt;/label&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;button class="btn-primary" onclick="login()"&gt;Entrar&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="auth-error" id="auth-error"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/div&gt;</p>
-<p class="p1">&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1">&lt;!-- APP --&gt;</p>
-<p class="p1">&lt;div id="app"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;aside class="sidebar"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="sidebar-logo"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="logo-text"&gt;domo&lt;span&gt;tekan&lt;/span&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;span class="logo-role" id="sidebar-role"&gt;superadmin&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;nav&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="nav-section"&gt;Principal&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="nav-item active" onclick="showPage('dashboard')"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"&gt;&lt;rect x="3" y="3" width="7" height="7" rx="1"/&gt;&lt;rect x="14" y="3" width="7" height="7" rx="1"/&gt;&lt;rect x="3" y="14" width="7" height="7" rx="1"/&gt;&lt;rect x="14" y="14" width="7" height="7" rx="1"/&gt;&lt;/svg&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Inicio</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="nav-item" onclick="showPage('servers')"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"&gt;&lt;rect x="2" y="3" width="20" height="6" rx="1"/&gt;&lt;rect x="2" y="15" width="20" height="6" rx="1"/&gt;&lt;circle cx="6" cy="6" r="1" fill="currentColor"/&gt;&lt;circle cx="6" cy="18" r="1" fill="currentColor"/&gt;&lt;/svg&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Servidores</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="nav-item superadmin-only" onclick="showPage('installers')"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"&gt;&lt;path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/&gt;&lt;circle cx="9" cy="7" r="4"/&gt;&lt;path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/&gt;&lt;/svg&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Instaladores</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="nav-section"&gt;Sistema&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="nav-item" onclick="showPage('alerts')"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"&gt;&lt;path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/&gt;&lt;path d="M13.73 21a2 2 0 0 1-3.46 0"/&gt;&lt;/svg&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>Alertas</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;span id="alert-badge" style="display:none;margin-left:auto;background:var(--red-light);color:var(--red);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:500;"&gt;0&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/nav&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="sidebar-user"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="user-avatar" id="sidebar-avatar"&gt;DT&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="user-name" id="sidebar-name"&gt;Cargando...&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="user-email" id="sidebar-email"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="logout-btn" onclick="logout()" title="Cerrar sesión"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"&gt;&lt;path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/&gt;&lt;polyline points="16 17 21 12 16 7"/&gt;&lt;line x1="21" y1="12" x2="9" y2="12"/&gt;&lt;/svg&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/aside&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;main class="main"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- DASHBOARD --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="page active" id="page-dashboard"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="topbar"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;h1&gt;Panel general&lt;/h1&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="topbar-actions"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;button class="btn superadmin-only" onclick="openInviteModal()"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"&gt;&lt;path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/&gt;&lt;path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/&gt;&lt;/svg&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>Invitar instalador</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="metrics" id="metrics"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="metric"&gt;&lt;div class="metric-label"&gt;Servidores totales&lt;/div&gt;&lt;div class="metric-value" id="m-total"&gt;—&lt;/div&gt;&lt;div class="metric-sub"&gt;registrados&lt;/div&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="metric"&gt;&lt;div class="metric-label"&gt;Online ahora&lt;/div&gt;&lt;div class="metric-value green" id="m-online"&gt;—&lt;/div&gt;&lt;div class="metric-sub"&gt;con heartbeat reciente&lt;/div&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="metric"&gt;&lt;div class="metric-label"&gt;Offline&lt;/div&gt;&lt;div class="metric-value red" id="m-offline"&gt;—&lt;/div&gt;&lt;div class="metric-sub"&gt;sin conexión&lt;/div&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="metric superadmin-only"&gt;&lt;div class="metric-label"&gt;Instaladores&lt;/div&gt;&lt;div class="metric-value" id="m-installers"&gt;—&lt;/div&gt;&lt;div class="metric-sub"&gt;activos&lt;/div&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="section-title"&gt;Servidores recientes&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="table-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="table-wrap"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;table&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;thead&gt;&lt;tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Instalación&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Instalador&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Estado&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;CPU&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;RAM&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Disco&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/tr&gt;&lt;/thead&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;tbody id="dashboard-servers-body"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;tr&gt;&lt;td colspan="7" class="loading"&gt;Cargando servidores...&lt;/td&gt;&lt;/tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/tbody&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/table&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- SERVERS --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="page" id="page-servers"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="topbar"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;h1&gt;Servidores&lt;/h1&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="topbar-actions"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;button class="btn" onclick="loadServers()"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"&gt;&lt;polyline points="23 4 23 10 17 10"/&gt;&lt;path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/&gt;&lt;/svg&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>Actualizar</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="table-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="table-wrap"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;table&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;thead&gt;&lt;tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Instalación&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Instalador&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Estado&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;CPU&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;RAM&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Disco&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;HA&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Último contacto&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/tr&gt;&lt;/thead&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;tbody id="servers-body"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;tr&gt;&lt;td colspan="9" class="loading"&gt;Cargando...&lt;/td&gt;&lt;/tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/tbody&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/table&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- INSTALLERS --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="page superadmin-only" id="page-installers"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="topbar"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;h1&gt;Instaladores&lt;/h1&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="topbar-actions"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;button class="btn btn-green" onclick="openInviteModal()"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"&gt;&lt;line x1="12" y1="5" x2="12" y2="19"/&gt;&lt;line x1="5" y1="12" x2="19" y2="12"/&gt;&lt;/svg&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>Nuevo enlace (5 min)</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="table-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="table-wrap"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;table&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;thead&gt;&lt;tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Nombre&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Email&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Rol&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Estado&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Registrado&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/tr&gt;&lt;/thead&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;tbody id="installers-body"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;tr&gt;&lt;td colspan="6" class="loading"&gt;Cargando...&lt;/td&gt;&lt;/tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/tbody&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/table&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- ALERTS --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="page" id="page-alerts"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="topbar"&gt;&lt;h1&gt;Alertas&lt;/h1&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="table-card"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="table-wrap"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;table&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;thead&gt;&lt;tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Servidor&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Tipo&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Detalle&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;th&gt;Cuando&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/tr&gt;&lt;/thead&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;tbody id="alerts-body"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;tr&gt;&lt;td colspan="4" class="loading"&gt;Calculando alertas...&lt;/td&gt;&lt;/tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/tbody&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/table&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/main&gt;</p>
-<p class="p1">&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1">&lt;!-- INVITE MODAL --&gt;</p>
-<p class="p1">&lt;div class="modal-overlay" id="invite-modal"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;div class="modal"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;h2&gt;Enlace de registro para instalador&lt;/h2&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;p&gt;Este enlace es válido durante &lt;strong&gt;5 minutos&lt;/strong&gt; y solo puede usarse una vez. Compártelo directamente con el instalador.&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="invite-link-box" id="invite-link-text"&gt;Generando enlace...&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="countdown" id="invite-countdown"&gt;&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="modal-actions"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn" onclick="copyInviteLink()"&gt;Copiar enlace&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;button class="btn btn-green" onclick="closeModal()"&gt;Cerrar&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/div&gt;</p>
-<p class="p1">&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1">&lt;!-- TOAST --&gt;</p>
-<p class="p1">&lt;div class="toast" id="toast"&gt;&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1">&lt;script&gt;</p>
-<p class="p1">const SUPABASE_URL = 'https://xsidbxnrtvjgjhoscyqp.supabase.co';</p>
-<p class="p1">const SUPABASE_KEY = 'sb_publishable__k8db4ohZo7ldZt30dpwkA_0nyQuD3F';</p>
-<p class="p1">const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);</p>
-<p class="p2"><br></p>
-<p class="p1">let currentUser = null;</p>
-<p class="p1">let currentProfile = null;</p>
-<p class="p1">let inviteCountdownInterval = null;</p>
-<p class="p1">let inviteToken = null;</p>
-<p class="p2"><br></p>
-<p class="p1">// AUTH</p>
-<p class="p1">async function login() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const email = document.getElementById('auth-email').value.trim();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const pass = document.getElementById('auth-pass').value;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const errEl = document.getElementById('auth-error');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>errEl.textContent = '';</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!email || !pass) { errEl.textContent = 'Rellena email y contraseña.'; return; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; return; }</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>await initApp(data.user);</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">async function initApp(user) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>currentUser = user;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const { data: profile } = await sb.from('usuarios').select('*').eq('email', user.email).single();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!profile) {</p>
-<p class="p1"><span class="Apple-converted-space">    </span>await sb.auth.signOut();</p>
-<p class="p1"><span class="Apple-converted-space">    </span>document.getElementById('auth-error').textContent = 'Usuario no encontrado en el sistema.';</p>
-<p class="p1"><span class="Apple-converted-space">    </span>return;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>}</p>
-<p class="p1"><span class="Apple-converted-space">  </span>currentProfile = profile;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('auth-screen').style.display = 'none';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('app').style.display = 'block';</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('sidebar-name').textContent = profile.nombre;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('sidebar-email').textContent = profile.email;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('sidebar-avatar').textContent = profile.nombre.split(' ').map(w=&gt;w[0]).join('').slice(0,2).toUpperCase();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('sidebar-role').textContent = profile.rol;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (profile.rol !== 'superadmin') {</p>
-<p class="p1"><span class="Apple-converted-space">    </span>document.querySelectorAll('.superadmin-only').forEach(el =&gt; el.style.display = 'none');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>loadDashboard();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>loadAlertBadge();</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">async function logout() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>await sb.auth.signOut();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>location.reload();</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// NAVIGATION</p>
-<p class="p1">function showPage(page) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.querySelectorAll('.page').forEach(p =&gt; p.classList.remove('active'));</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.querySelectorAll('.nav-item').forEach(n =&gt; n.classList.remove('active'));</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('page-' + page).classList.add('active');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>event.currentTarget.classList.add('active');</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (page === 'dashboard') loadDashboard();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (page === 'servers') loadServers();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (page === 'installers') loadInstallers();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (page === 'alerts') loadAlerts();</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// HELPERS</p>
-<p class="p1">function timeAgo(ts) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!ts) return '—';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const diff = (Date.now() - new Date(ts).getTime()) / 1000;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (diff &lt; 60) return 'hace ' + Math.round(diff) + 's';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (diff &lt; 3600) return 'hace ' + Math.round(diff/60) + 'min';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (diff &lt; 86400) return 'hace ' + Math.round(diff/3600) + 'h';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return 'hace ' + Math.round(diff/86400) + 'd';</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function statClass(val, warn=70, danger=85) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!val &amp;&amp; val !== 0) return '';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (val &gt;= danger) return 'danger';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (val &gt;= warn) return 'warn';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return '';</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function statStr(val) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (val === null || val === undefined) return '—';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return Math.round(val) + '%';</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function isOnline(ts) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!ts) return false;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return (Date.now() - new Date(ts).getTime()) &lt; 10 * 60 * 1000;</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function serverRow(s, extended=false) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const online = isOnline(s.ultimo_heartbeat);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const estado = online ? 'online' : 'offline';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const estadoLabel = online ? 'Online' : 'Offline';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const cpu = s.cpu_last; const ram = s.ram_last; const disco = s.disco_last;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>let row = `&lt;td&gt;&lt;div class="server-name"&gt;${s.nombre}&lt;/div&gt;&lt;div class="server-id"&gt;${s.id}&lt;/div&gt;&lt;/td&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>row += `&lt;td style="font-size:13px;color:var(--text-2)"&gt;${s.instalador_nombre || '—'}&lt;/td&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>row += `&lt;td&gt;&lt;span class="badge ${estado}"&gt;&lt;span class="badge-dot"&gt;&lt;/span&gt;${estadoLabel}&lt;/span&gt;&lt;/td&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>row += `&lt;td&gt;&lt;span class="stat ${statClass(cpu)}"&gt;${statStr(cpu)}&lt;/span&gt;&lt;/td&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>row += `&lt;td&gt;&lt;span class="stat ${statClass(ram)}"&gt;${statStr(ram)}&lt;/span&gt;&lt;/td&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>row += `&lt;td&gt;&lt;span class="stat ${statClass(disco)}"&gt;${statStr(disco)}&lt;/span&gt;&lt;/td&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (extended) {</p>
-<p class="p1"><span class="Apple-converted-space">    </span>row += `&lt;td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-3)"&gt;${s.ha_version || '—'}&lt;/td&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>row += `&lt;td style="font-size:12px;color:var(--text-3)"&gt;${timeAgo(s.ultimo_heartbeat)}&lt;/td&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>}</p>
-<p class="p1"><span class="Apple-converted-space">  </span>row += `&lt;td&gt;&lt;button class="action-btn" onclick="connectServer('${s.id}','${s.nombre}')"&gt;Conectar&lt;/button&gt;&lt;/td&gt;`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>return '&lt;tr&gt;' + row + '&lt;/tr&gt;';</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">async function getServersWithStats() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>let query = sb.from('servidores').select('*').eq('activo', true);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (currentProfile.rol === 'instalador') query = query.eq('instalador_id', currentProfile.id);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const { data: servers } = await query.order('creado_en', { ascending: false });</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!servers) return [];</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>const { data: installers } = await sb.from('usuarios').select('id,nombre').in('rol', ['instalador','admin','superadmin']);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const instMap = {};</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (installers) installers.forEach(i =&gt; instMap[i.id] = i.nombre);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>const { data: hbs } = await sb.from('heartbeats').select('servidor_id,cpu,ram,disco,recibido_en').order('recibido_en', { ascending: false });</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const hbMap = {};</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (hbs) hbs.forEach(h =&gt; { if (!hbMap[h.servidor_id]) hbMap[h.servidor_id] = h; });</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>return servers.map(s =&gt; ({</p>
-<p class="p1"><span class="Apple-converted-space">    </span>...s,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>instalador_nombre: instMap[s.instalador_id] || '—',</p>
-<p class="p1"><span class="Apple-converted-space">    </span>cpu_last: hbMap[s.id]?.cpu ?? null,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>ram_last: hbMap[s.id]?.ram ?? null,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>disco_last: hbMap[s.id]?.disco ?? null,</p>
-<p class="p1"><span class="Apple-converted-space">  </span>}));</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// DASHBOARD</p>
-<p class="p1">async function loadDashboard() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const servers = await getServersWithStats();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const online = servers.filter(s =&gt; isOnline(s.ultimo_heartbeat)).length;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const offline = servers.length - online;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('m-total').textContent = servers.length;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('m-online').textContent = online;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('m-offline').textContent = offline;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (currentProfile.rol === 'superadmin') {</p>
-<p class="p1"><span class="Apple-converted-space">    </span>const { count } = await sb.from('usuarios').select('*', {count:'exact',head:true}).eq('rol','instalador').eq('activo',true);</p>
-<p class="p1"><span class="Apple-converted-space">    </span>document.getElementById('m-installers').textContent = count || 0;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>const tbody = document.getElementById('dashboard-servers-body');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!servers.length) { tbody.innerHTML = '&lt;tr&gt;&lt;td colspan="7" class="empty"&gt;No hay servidores registrados aún&lt;/td&gt;&lt;/tr&gt;'; return; }</p>
-<p class="p1"><span class="Apple-converted-space">  </span>tbody.innerHTML = servers.slice(0,6).map(s =&gt; serverRow(s)).join('');</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// SERVERS</p>
-<p class="p1">async function loadServers() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const tbody = document.getElementById('servers-body');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>tbody.innerHTML = '&lt;tr&gt;&lt;td colspan="9" class="loading"&gt;Cargando...&lt;/td&gt;&lt;/tr&gt;';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const servers = await getServersWithStats();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!servers.length) { tbody.innerHTML = '&lt;tr&gt;&lt;td colspan="9" class="empty"&gt;No hay servidores registrados&lt;/td&gt;&lt;/tr&gt;'; return; }</p>
-<p class="p1"><span class="Apple-converted-space">  </span>tbody.innerHTML = servers.map(s =&gt; serverRow(s, true)).join('');</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// INSTALLERS</p>
-<p class="p1">async function loadInstallers() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const tbody = document.getElementById('installers-body');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>tbody.innerHTML = '&lt;tr&gt;&lt;td colspan="6" class="loading"&gt;Cargando...&lt;/td&gt;&lt;/tr&gt;';</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const { data } = await sb.from('usuarios').select('*').in('rol',['instalador','admin']).order('creado_en');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!data || !data.length) { tbody.innerHTML = '&lt;tr&gt;&lt;td colspan="6" class="empty"&gt;No hay instaladores aún. Genera un enlace de invitación.&lt;/td&gt;&lt;/tr&gt;'; return; }</p>
-<p class="p1"><span class="Apple-converted-space">  </span>tbody.innerHTML = data.map(u =&gt; `</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;td&gt;&lt;div style="display:flex;align-items:center;gap:10px"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="inst-avatar"&gt;${u.nombre.split(' ').map(w=&gt;w[0]).join('').slice(0,2).toUpperCase()}&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="inst-name"&gt;${u.nombre}&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;td style="color:var(--text-2);font-size:13px"&gt;${u.email}&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;td&gt;&lt;span class="badge ${u.rol === 'admin' ? 'warn' : 'online'}"&gt;${u.rol}&lt;/span&gt;&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;td&gt;&lt;span class="badge ${u.activo ? 'online' : 'offline'}"&gt;${u.activo ? 'Activo' : 'Inactivo'}&lt;/span&gt;&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;td style="font-size:12px;color:var(--text-3)"&gt;${new Date(u.creado_en).toLocaleDateString('es-ES')}&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;td&gt;&lt;button class="action-btn danger" onclick="toggleUser('${u.id}',${u.activo})"&gt;${u.activo ? 'Desactivar' : 'Activar'}&lt;/button&gt;&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>`).join('');</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">async function toggleUser(id, activo) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>await sb.from('usuarios').update({ activo: !activo }).eq('id', id);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>loadInstallers();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>showToast(activo ? 'Usuario desactivado' : 'Usuario activado');</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// ALERTS</p>
-<p class="p1">async function loadAlertBadge() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const { data: hbs } = await sb.from('heartbeats').select('servidor_id,cpu,ram,disco,recibido_en').order('recibido_en', { ascending: false });</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!hbs) return;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const hbMap = {};</p>
-<p class="p1"><span class="Apple-converted-space">  </span>hbs.forEach(h =&gt; { if (!hbMap[h.servidor_id]) hbMap[h.servidor_id] = h; });</p>
-<p class="p1"><span class="Apple-converted-space">  </span>let count = 0;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>Object.values(hbMap).forEach(h =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">    </span>if ((h.cpu||0) &gt; 80 || (h.ram||0) &gt; 80 || (h.disco||0) &gt; 80) count++;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>});</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const badge = document.getElementById('alert-badge');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (count &gt; 0) { badge.style.display = 'inline'; badge.textContent = count; }</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">async function loadAlerts() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const tbody = document.getElementById('alerts-body');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const servers = await getServersWithStats();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const alerts = [];</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>servers.forEach(s =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">    </span>if (!isOnline(s.ultimo_heartbeat)) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>alerts.push({ servidor: s.nombre, tipo: 'offline', detalle: 'Sin conexión', cuando: s.ultimo_heartbeat });</p>
-<p class="p1"><span class="Apple-converted-space">    </span>} else {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if ((s.cpu_last||0) &gt; 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `CPU al ${Math.round(s.cpu_last)}%`, cuando: s.ultimo_heartbeat });</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if ((s.ram_last||0) &gt; 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `RAM al ${Math.round(s.ram_last)}%`, cuando: s.ultimo_heartbeat });</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if ((s.disco_last||0) &gt; 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `Disco al ${Math.round(s.disco_last)}%`, cuando: s.ultimo_heartbeat });</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p1"><span class="Apple-converted-space">  </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (!alerts.length) { tbody.innerHTML = '&lt;tr&gt;&lt;td colspan="4" class="empty"&gt;✓ Sin alertas activas&lt;/td&gt;&lt;/tr&gt;'; return; }</p>
-<p class="p1"><span class="Apple-converted-space">  </span>tbody.innerHTML = alerts.map(a =&gt; `</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;td style="font-weight:500"&gt;${a.servidor}&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;td&gt;&lt;span class="badge ${a.tipo === 'offline' ? 'offline' : 'warn'}"&gt;${a.tipo === 'offline' ? 'Offline' : 'Alerta'}&lt;/span&gt;&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;td style="color:var(--text-2)"&gt;${a.detalle}&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;td style="font-size:12px;color:var(--text-3)"&gt;${timeAgo(a.cuando)}&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>`).join('');</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// INVITE</p>
-<p class="p1">async function openInviteModal() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const token = crypto.randomUUID().replace(/-/g,'').slice(0,16);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>inviteToken = token;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const expira = new Date(Date.now() + 5 * 60 * 1000);</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>await sb.from('invitaciones').insert({</p>
-<p class="p1"><span class="Apple-converted-space">    </span>token,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>creado_por: currentProfile.id,</p>
-<p class="p1"><span class="Apple-converted-space">    </span>expira_en: expira.toISOString()</p>
-<p class="p1"><span class="Apple-converted-space">  </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>const link = `${location.origin}/register?invite=${token}`;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('invite-link-text').textContent = link;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('invite-modal').classList.add('open');</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>let secs = 300;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>clearInterval(inviteCountdownInterval);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>updateCountdown(secs);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>inviteCountdownInterval = setInterval(() =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">    </span>secs--;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>if (secs &lt;= 0) { clearInterval(inviteCountdownInterval); closeModal(); showToast('Enlace expirado'); return; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>updateCountdown(secs);</p>
-<p class="p1"><span class="Apple-converted-space">  </span>}, 1000);</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function updateCountdown(secs) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const m = Math.floor(secs/60).toString().padStart(2,'0');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const s = (secs%60).toString().padStart(2,'0');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('invite-countdown').textContent = `Expira en ${m}:${s}`;</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function closeModal() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>document.getElementById('invite-modal').classList.remove('open');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>clearInterval(inviteCountdownInterval);</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">function copyInviteLink() {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const text = document.getElementById('invite-link-text').textContent;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>navigator.clipboard.writeText(text).then(() =&gt; showToast('Enlace copiado'));</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// CONNECT</p>
-<p class="p1">function connectServer(id, nombre) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>showToast(`Conectando a ${nombre}...`);</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// TOAST</p>
-<p class="p1">function showToast(msg) {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>const t = document.getElementById('toast');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>t.textContent = msg;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>t.classList.add('show');</p>
-<p class="p1"><span class="Apple-converted-space">  </span>setTimeout(() =&gt; t.classList.remove('show'), 2500);</p>
-<p class="p1">}</p>
-<p class="p2"><br></p>
-<p class="p1">// INIT</p>
-<p class="p1">sb.auth.onAuthStateChange(async (event, session) =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">  </span>if (session?.user) await initApp(session.user);</p>
-<p class="p1">});</p>
-<p class="p2"><br></p>
-<p class="p1">document.getElementById('auth-pass').addEventListener('keydown', e =&gt; { if (e.key === 'Enter') login(); });</p>
-<p class="p1">&lt;/script&gt;</p>
-<p class="p1">&lt;/body&gt;</p>
-<p class="p1">&lt;/html&gt;</p>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">domo<span>tekan</span></div>
+    <div class="auth-sub">Panel de control · Acceso profesional</div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="tu@domotekan.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" onclick="login()">Entrar</button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">domo<span>tekan</span></div>
+      <span class="logo-role" id="sidebar-role">superadmin</span>
+    </div>
+    <nav>
+      <div class="nav-section">Principal</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Inicio
+      </div>
+      <div class="nav-item" onclick="showPage('servers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="6" rx="1"/><rect x="2" y="15" width="20" height="6" rx="1"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>
+        Servidores
+      </div>
+      <div class="nav-item superadmin-only" onclick="showPage('installers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Instaladores
+      </div>
+      <div class="nav-section">Sistema</div>
+      <div class="nav-item" onclick="showPage('alerts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Alertas
+        <span id="alert-badge" style="display:none;margin-left:auto;background:var(--red-light);color:var(--red);font-size:10px;padding:1px 6px;border-radius:99px;font-weight:500;">0</span>
+      </div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-avatar">DT</div>
+      <div>
+        <div class="user-name" id="sidebar-name">Cargando...</div>
+        <div class="user-email" id="sidebar-email"></div>
+      </div>
+      <button class="logout-btn" onclick="logout()" title="Cerrar sesión">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="topbar">
+        <h1>Panel general</h1>
+        <div class="topbar-actions">
+          <button class="btn superadmin-only" onclick="openInviteModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Invitar instalador
+          </button>
+        </div>
+      </div>
+      <div class="metrics" id="metrics">
+        <div class="metric"><div class="metric-label">Servidores totales</div><div class="metric-value" id="m-total">—</div><div class="metric-sub">registrados</div></div>
+        <div class="metric"><div class="metric-label">Online ahora</div><div class="metric-value green" id="m-online">—</div><div class="metric-sub">con heartbeat reciente</div></div>
+        <div class="metric"><div class="metric-label">Offline</div><div class="metric-value red" id="m-offline">—</div><div class="metric-sub">sin conexión</div></div>
+        <div class="metric superadmin-only"><div class="metric-label">Instaladores</div><div class="metric-value" id="m-installers">—</div><div class="metric-sub">activos</div></div>
+      </div>
+      <div class="section-title">Servidores recientes</div>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Instalación</th>
+              <th>Instalador</th>
+              <th>Estado</th>
+              <th>CPU</th>
+              <th>RAM</th>
+              <th>Disco</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="dashboard-servers-body">
+              <tr><td colspan="7" class="loading">Cargando servidores...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SERVERS -->
+    <div class="page" id="page-servers">
+      <div class="topbar">
+        <h1>Servidores</h1>
+        <div class="topbar-actions">
+          <button class="btn" onclick="loadServers()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Actualizar
+          </button>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Instalación</th>
+              <th>Instalador</th>
+              <th>Estado</th>
+              <th>CPU</th>
+              <th>RAM</th>
+              <th>Disco</th>
+              <th>HA</th>
+              <th>Último contacto</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="servers-body">
+              <tr><td colspan="9" class="loading">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- INSTALLERS -->
+    <div class="page superadmin-only" id="page-installers">
+      <div class="topbar">
+        <h1>Instaladores</h1>
+        <div class="topbar-actions">
+          <button class="btn btn-green" onclick="openInviteModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nuevo enlace (5 min)
+          </button>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Rol</th>
+              <th>Estado</th>
+              <th>Registrado</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="installers-body">
+              <tr><td colspan="6" class="loading">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="page" id="page-alerts">
+      <div class="topbar"><h1>Alertas</h1></div>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Servidor</th>
+              <th>Tipo</th>
+              <th>Detalle</th>
+              <th>Cuando</th>
+            </tr></thead>
+            <tbody id="alerts-body">
+              <tr><td colspan="4" class="loading">Calculando alertas...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- INVITE MODAL -->
+<div class="modal-overlay" id="invite-modal">
+  <div class="modal">
+    <h2>Enlace de registro para instalador</h2>
+    <p>Este enlace es válido durante <strong>5 minutos</strong> y solo puede usarse una vez. Compártelo directamente con el instalador.</p>
+    <div class="invite-link-box" id="invite-link-text">Generando enlace...</div>
+    <div class="countdown" id="invite-countdown"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="copyInviteLink()">Copiar enlace</button>
+      <button class="btn btn-green" onclick="closeModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://xsidbxnrtvjgjhoscyqp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable__k8db4ohZo7ldZt30dpwkA_0nyQuD3F';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let inviteCountdownInterval = null;
+let inviteToken = null;
+
+// AUTH
+async function login() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+
+  if (!email || !pass) { errEl.textContent = 'Rellena email y contraseña.'; return; }
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; return; }
+
+  await initApp(data.user);
+}
+
+async function initApp(user) {
+  currentUser = user;
+  const { data: profile } = await sb.from('usuarios').select('*').eq('email', user.email).single();
+  if (!profile) {
+    await sb.auth.signOut();
+    document.getElementById('auth-error').textContent = 'Usuario no encontrado en el sistema.';
+    return;
+  }
+  currentProfile = profile;
+
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  document.getElementById('sidebar-name').textContent = profile.nombre;
+  document.getElementById('sidebar-email').textContent = profile.email;
+  document.getElementById('sidebar-avatar').textContent = profile.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('sidebar-role').textContent = profile.rol;
+
+  if (profile.rol !== 'superadmin') {
+    document.querySelectorAll('.superadmin-only').forEach(el => el.style.display = 'none');
+  }
+
+  loadDashboard();
+  loadAlertBadge();
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+// NAVIGATION
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'servers') loadServers();
+  if (page === 'installers') loadInstallers();
+  if (page === 'alerts') loadAlerts();
+}
+
+// HELPERS
+function timeAgo(ts) {
+  if (!ts) return '—';
+  const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+  if (diff < 60) return 'hace ' + Math.round(diff) + 's';
+  if (diff < 3600) return 'hace ' + Math.round(diff/60) + 'min';
+  if (diff < 86400) return 'hace ' + Math.round(diff/3600) + 'h';
+  return 'hace ' + Math.round(diff/86400) + 'd';
+}
+
+function statClass(val, warn=70, danger=85) {
+  if (!val && val !== 0) return '';
+  if (val >= danger) return 'danger';
+  if (val >= warn) return 'warn';
+  return '';
+}
+
+function statStr(val) {
+  if (val === null || val === undefined) return '—';
+  return Math.round(val) + '%';
+}
+
+function isOnline(ts) {
+  if (!ts) return false;
+  return (Date.now() - new Date(ts).getTime()) < 10 * 60 * 1000;
+}
+
+function serverRow(s, extended=false) {
+  const online = isOnline(s.ultimo_heartbeat);
+  const estado = online ? 'online' : 'offline';
+  const estadoLabel = online ? 'Online' : 'Offline';
+  const cpu = s.cpu_last; const ram = s.ram_last; const disco = s.disco_last;
+
+  let row = `<td><div class="server-name">${s.nombre}</div><div class="server-id">${s.id}</div></td>`;
+  row += `<td style="font-size:13px;color:var(--text-2)">${s.instalador_nombre || '—'}</td>`;
+  row += `<td><span class="badge ${estado}"><span class="badge-dot"></span>${estadoLabel}</span></td>`;
+  row += `<td><span class="stat ${statClass(cpu)}">${statStr(cpu)}</span></td>`;
+  row += `<td><span class="stat ${statClass(ram)}">${statStr(ram)}</span></td>`;
+  row += `<td><span class="stat ${statClass(disco)}">${statStr(disco)}</span></td>`;
+  if (extended) {
+    row += `<td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-3)">${s.ha_version || '—'}</td>`;
+    row += `<td style="font-size:12px;color:var(--text-3)">${timeAgo(s.ultimo_heartbeat)}</td>`;
+  }
+  row += `<td><button class="action-btn" onclick="connectServer('${s.id}','${s.nombre}')">Conectar</button></td>`;
+  return '<tr>' + row + '</tr>';
+}
+
+async function getServersWithStats() {
+  let query = sb.from('servidores').select('*').eq('activo', true);
+  if (currentProfile.rol === 'instalador') query = query.eq('instalador_id', currentProfile.id);
+  const { data: servers } = await query.order('creado_en', { ascending: false });
+  if (!servers) return [];
+
+  const { data: installers } = await sb.from('usuarios').select('id,nombre').in('rol', ['instalador','admin','superadmin']);
+  const instMap = {};
+  if (installers) installers.forEach(i => instMap[i.id] = i.nombre);
+
+  const { data: hbs } = await sb.from('heartbeats').select('servidor_id,cpu,ram,disco,recibido_en').order('recibido_en', { ascending: false });
+  const hbMap = {};
+  if (hbs) hbs.forEach(h => { if (!hbMap[h.servidor_id]) hbMap[h.servidor_id] = h; });
+
+  return servers.map(s => ({
+    ...s,
+    instalador_nombre: instMap[s.instalador_id] || '—',
+    cpu_last: hbMap[s.id]?.cpu ?? null,
+    ram_last: hbMap[s.id]?.ram ?? null,
+    disco_last: hbMap[s.id]?.disco ?? null,
+  }));
+}
+
+// DASHBOARD
+async function loadDashboard() {
+  const servers = await getServersWithStats();
+  const online = servers.filter(s => isOnline(s.ultimo_heartbeat)).length;
+  const offline = servers.length - online;
+
+  document.getElementById('m-total').textContent = servers.length;
+  document.getElementById('m-online').textContent = online;
+  document.getElementById('m-offline').textContent = offline;
+
+  if (currentProfile.rol === 'superadmin') {
+    const { count } = await sb.from('usuarios').select('*', {count:'exact',head:true}).eq('rol','instalador').eq('activo',true);
+    document.getElementById('m-installers').textContent = count || 0;
+  }
+
+  const tbody = document.getElementById('dashboard-servers-body');
+  if (!servers.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay servidores registrados aún</td></tr>'; return; }
+  tbody.innerHTML = servers.slice(0,6).map(s => serverRow(s)).join('');
+}
+
+// SERVERS
+async function loadServers() {
+  const tbody = document.getElementById('servers-body');
+  tbody.innerHTML = '<tr><td colspan="9" class="loading">Cargando...</td></tr>';
+  const servers = await getServersWithStats();
+  if (!servers.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">No hay servidores registrados</td></tr>'; return; }
+  tbody.innerHTML = servers.map(s => serverRow(s, true)).join('');
+}
+
+// INSTALLERS
+async function loadInstallers() {
+  const tbody = document.getElementById('installers-body');
+  tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando...</td></tr>';
+  const { data } = await sb.from('usuarios').select('*').in('rol',['instalador','admin']).order('creado_en');
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay instaladores aún. Genera un enlace de invitación.</td></tr>'; return; }
+  tbody.innerHTML = data.map(u => `
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:10px">
+        <div class="inst-avatar">${u.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
+        <div class="inst-name">${u.nombre}</div>
+      </div></td>
+      <td style="color:var(--text-2);font-size:13px">${u.email}</td>
+      <td><span class="badge ${u.rol === 'admin' ? 'warn' : 'online'}">${u.rol}</span></td>
+      <td><span class="badge ${u.activo ? 'online' : 'offline'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+      <td style="font-size:12px;color:var(--text-3)">${new Date(u.creado_en).toLocaleDateString('es-ES')}</td>
+      <td><button class="action-btn danger" onclick="toggleUser('${u.id}',${u.activo})">${u.activo ? 'Desactivar' : 'Activar'}</button></td>
+    </tr>
+  `).join('');
+}
+
+async function toggleUser(id, activo) {
+  await sb.from('usuarios').update({ activo: !activo }).eq('id', id);
+  loadInstallers();
+  showToast(activo ? 'Usuario desactivado' : 'Usuario activado');
+}
+
+// ALERTS
+async function loadAlertBadge() {
+  const { data: hbs } = await sb.from('heartbeats').select('servidor_id,cpu,ram,disco,recibido_en').order('recibido_en', { ascending: false });
+  if (!hbs) return;
+  const hbMap = {};
+  hbs.forEach(h => { if (!hbMap[h.servidor_id]) hbMap[h.servidor_id] = h; });
+  let count = 0;
+  Object.values(hbMap).forEach(h => {
+    if ((h.cpu||0) > 80 || (h.ram||0) > 80 || (h.disco||0) > 80) count++;
+  });
+  const badge = document.getElementById('alert-badge');
+  if (count > 0) { badge.style.display = 'inline'; badge.textContent = count; }
+}
+
+async function loadAlerts() {
+  const tbody = document.getElementById('alerts-body');
+  const servers = await getServersWithStats();
+  const alerts = [];
+
+  servers.forEach(s => {
+    if (!isOnline(s.ultimo_heartbeat)) {
+      alerts.push({ servidor: s.nombre, tipo: 'offline', detalle: 'Sin conexión', cuando: s.ultimo_heartbeat });
+    } else {
+      if ((s.cpu_last||0) > 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `CPU al ${Math.round(s.cpu_last)}%`, cuando: s.ultimo_heartbeat });
+      if ((s.ram_last||0) > 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `RAM al ${Math.round(s.ram_last)}%`, cuando: s.ultimo_heartbeat });
+      if ((s.disco_last||0) > 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `Disco al ${Math.round(s.disco_last)}%`, cuando: s.ultimo_heartbeat });
+    }
+  });
+
+  if (!alerts.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">✓ Sin alertas activas</td></tr>'; return; }
+  tbody.innerHTML = alerts.map(a => `
+    <tr>
+      <td style="font-weight:500">${a.servidor}</td>
+      <td><span class="badge ${a.tipo === 'offline' ? 'offline' : 'warn'}">${a.tipo === 'offline' ? 'Offline' : 'Alerta'}</span></td>
+      <td style="color:var(--text-2)">${a.detalle}</td>
+      <td style="font-size:12px;color:var(--text-3)">${timeAgo(a.cuando)}</td>
+    </tr>
+  `).join('');
+}
+
+// INVITE
+async function openInviteModal() {
+  const token = crypto.randomUUID().replace(/-/g,'').slice(0,16);
+  inviteToken = token;
+  const expira = new Date(Date.now() + 5 * 60 * 1000);
+
+  await sb.from('invitaciones').insert({
+    token,
+    creado_por: currentProfile.id,
+    expira_en: expira.toISOString()
+  });
+
+  const link = `${location.origin}/register?invite=${token}`;
+  document.getElementById('invite-link-text').textContent = link;
+  document.getElementById('invite-modal').classList.add('open');
+
+  let secs = 300;
+  clearInterval(inviteCountdownInterval);
+  updateCountdown(secs);
+  inviteCountdownInterval = setInterval(() => {
+    secs--;
+    if (secs <= 0) { clearInterval(inviteCountdownInterval); closeModal(); showToast('Enlace expirado'); return; }
+    updateCountdown(secs);
+  }, 1000);
+}
+
+function updateCountdown(secs) {
+  const m = Math.floor(secs/60).toString().padStart(2,'0');
+  const s = (secs%60).toString().padStart(2,'0');
+  document.getElementById('invite-countdown').textContent = `Expira en ${m}:${s}`;
+}
+
+function closeModal() {
+  document.getElementById('invite-modal').classList.remove('open');
+  clearInterval(inviteCountdownInterval);
+}
+
+function copyInviteLink() {
+  const text = document.getElementById('invite-link-text').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Enlace copiado'));
+}
+
+// CONNECT
+function connectServer(id, nombre) {
+  showToast(`Conectando a ${nombre}...`);
+}
+
+// TOAST
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// INIT
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) await initApp(session.user);
+});
+
+document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+</script>
 </body>
 </html>
