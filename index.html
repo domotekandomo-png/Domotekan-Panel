@@ -275,7 +275,6 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 </head>
 <body>
 
-<!-- AUTH -->
 <div id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">domo<span>tekan</span></div>
@@ -293,7 +292,6 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
   </div>
 </div>
 
-<!-- APP -->
 <div id="app">
   <aside class="sidebar">
     <div class="sidebar-logo">
@@ -334,7 +332,6 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
   </aside>
 
   <main class="main">
-    <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
       <div class="topbar">
         <h1>Panel general</h1>
@@ -372,11 +369,14 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
       </div>
     </div>
 
-    <!-- SERVERS -->
     <div class="page" id="page-servers">
       <div class="topbar">
         <h1>Servidores</h1>
         <div class="topbar-actions">
+          <button class="btn btn-green" onclick="openAltaModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Dar de alta instalación
+          </button>
           <button class="btn" onclick="loadServers()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             Actualizar
@@ -405,7 +405,6 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
       </div>
     </div>
 
-    <!-- INSTALLERS -->
     <div class="page superadmin-only" id="page-installers">
       <div class="topbar">
         <h1>Instaladores</h1>
@@ -435,7 +434,6 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
       </div>
     </div>
 
-    <!-- ALERTS -->
     <div class="page" id="page-alerts">
       <div class="topbar"><h1>Alertas</h1></div>
       <div class="table-card">
@@ -457,7 +455,6 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
   </main>
 </div>
 
-<!-- INVITE MODAL -->
 <div class="modal-overlay" id="invite-modal">
   <div class="modal">
     <h2>Enlace de registro para instalador</h2>
@@ -471,7 +468,26 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
   </div>
 </div>
 
-<!-- TOAST -->
+<div class="modal-overlay" id="alta-modal">
+  <div class="modal">
+    <h2>🔌 Dar de alta nueva instalación</h2>
+    <p>Introduce los datos para verificar y guardar el nuevo servidor.</p>
+    <div class="field">
+      <label>Cliente / Referencia</label>
+      <input type="text" id="alta-cliente" placeholder="Ej: Fulanito - Lizarre 9">
+    </div>
+    <div class="field">
+      <label>URL de Cloudflare</label>
+      <input type="url" id="alta-url" placeholder="https://lizarre91a.domotekan.com">
+    </div>
+    <div id="alta-msg" style="font-size: 12px; margin-bottom: 16px; min-height: 18px; font-weight: 500;"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAltaModal()">Cancelar</button>
+      <button class="btn btn-green" id="alta-btn" onclick="guardarInstalacion()">Verificar y Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -535,12 +551,76 @@ function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
-  event.currentTarget.classList.add('active');
+  if (event) event.currentTarget.classList.add('active');
 
   if (page === 'dashboard') loadDashboard();
   if (page === 'servers') loadServers();
   if (page === 'installers') loadInstallers();
   if (page === 'alerts') loadAlerts();
+}
+
+// ALTA DE INSTALACIONES
+function openAltaModal() {
+  document.getElementById('alta-cliente').value = '';
+  document.getElementById('alta-url').value = 'https://';
+  document.getElementById('alta-msg').textContent = '';
+  document.getElementById('alta-modal').classList.add('open');
+}
+
+function closeAltaModal() {
+  document.getElementById('alta-modal').classList.remove('open');
+}
+
+async function guardarInstalacion() {
+  const cliente = document.getElementById('alta-cliente').value.trim();
+  const url = document.getElementById('alta-url').value.trim();
+  const msgEl = document.getElementById('alta-msg');
+  const btn = document.getElementById('alta-btn');
+
+  if (!cliente || !url || url === 'https://') {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Por favor, rellena el cliente y la URL.';
+    return;
+  }
+
+  msgEl.style.color = 'var(--amber)';
+  msgEl.textContent = '⏳ Comprobando conexión...';
+  btn.disabled = true;
+
+  let estaVivo = false;
+  try {
+    await fetch(url, { mode: 'no-cors' });
+    estaVivo = true;
+  } catch (e) {
+    estaVivo = false;
+  }
+
+  if (!estaVivo) {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '❌ Error de conexión con el túnel.';
+    btn.disabled = false;
+    return;
+  }
+
+  msgEl.style.color = 'var(--green)';
+  msgEl.textContent = '🟢 ¡Conectado! Guardando...';
+
+  const { error } = await sb.from('instalaciones').insert([{
+    cliente: cliente,
+    url_cloudflare: url,
+    estado: 'online'
+  }]);
+
+  btn.disabled = false;
+
+  if (error) {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Error: ' + error.message;
+  } else {
+    showToast('Instalación guardada');
+    closeAltaModal();
+    loadDashboard();
+  }
 }
 
 // HELPERS
@@ -592,7 +672,7 @@ function serverRow(s, extended=false) {
 
 async function getServersWithStats() {
   let query = sb.from('servidores').select('*').eq('activo', true);
-  if (currentProfile.rol === 'instalador') query = query.eq('instalador_id', currentProfile.id);
+  if (currentProfile && currentProfile.rol === 'instalador') query = query.eq('instalador_id', currentProfile.id);
   const { data: servers } = await query.order('creado_en', { ascending: false });
   if (!servers) return [];
 
@@ -623,7 +703,7 @@ async function loadDashboard() {
   document.getElementById('m-online').textContent = online;
   document.getElementById('m-offline').textContent = offline;
 
-  if (currentProfile.rol === 'superadmin') {
+  if (currentProfile && currentProfile.rol === 'superadmin') {
     const { count } = await sb.from('usuarios').select('*', {count:'exact',head:true}).eq('rol','instalador').eq('activo',true);
     document.getElementById('m-installers').textContent = count || 0;
   }
@@ -647,7 +727,7 @@ async function loadInstallers() {
   const tbody = document.getElementById('installers-body');
   tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando...</td></tr>';
   const { data } = await sb.from('usuarios').select('*').in('rol',['instalador','admin']).order('creado_en');
-  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay instaladores aún. Genera un enlace de invitación.</td></tr>'; return; }
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay instaladores aún.</td></tr>'; return; }
   tbody.innerHTML = data.map(u => `
     <tr>
       <td><div style="display:flex;align-items:center;gap:10px">
@@ -743,12 +823,8 @@ function updateCountdown(secs) {
 
 function closeModal() {
   document.getElementById('invite-modal').classList.remove('open');
+  document.getElementById('alta-modal').classList.remove('open');
   clearInterval(inviteCountdownInterval);
-}
-
-function copyInviteLink() {
-  const text = document.getElementById('invite-link-text').textContent;
-  navigator.clipboard.writeText(text).then(() => showToast('Enlace copiado'));
 }
 
 // CONNECT
