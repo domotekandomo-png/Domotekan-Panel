@@ -468,19 +468,24 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
   </div>
 </div>
 
+<!-- ALTA INSTALACION MODAL AMPLIADO -->
 <div class="modal-overlay" id="alta-modal">
-  <div class="modal">
-    <h2>🔌 Dar de alta nueva instalación</h2>
-    <p>Introduce los datos para verificar y guardar el nuevo servidor.</p>
-    <div class="field">
-      <label>Cliente / Referencia</label>
-      <input type="text" id="alta-cliente" placeholder="Ej: Fulanito - Lizarre 9">
+  <div class="modal" style="width: 500px;">
+    <h2>🔌 Alta de Instalación Profesional</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <div class="field"><label>Nombre Cliente</label><input type="text" id="alta-cliente" placeholder="Nombre completo"></div>
+      <div class="field"><label>Alias Instalación</label><input type="text" id="alta-alias" placeholder="Ej: Chalet Sopelana"></div>
     </div>
-    <div class="field">
-      <label>URL de Cloudflare</label>
-      <input type="url" id="alta-url" placeholder="https://lizarre91a.domotekan.com">
+    <div class="field"><label>URL Cloudflare</label><input type="url" id="alta-url" placeholder="https://..."></div>
+    <div class="field"><label>Dirección</label><input type="text" id="alta-direccion"></div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <div class="field"><label>Código Postal</label><input type="text" id="alta-cp"></div>
+      <div class="field"><label>Comunidad</label><input type="text" id="alta-comunidad"></div>
     </div>
-    <div id="alta-msg" style="font-size: 12px; margin-bottom: 16px; min-height: 18px; font-weight: 500;"></div>
+    <div class="field"><label>País</label><input type="text" id="alta-pais" value="España"></div>
+    
+    <div id="alta-msg" style="font-size: 12px; margin-bottom: 10px; min-height: 18px; font-weight: 500;"></div>
+    
     <div class="modal-actions">
       <button class="btn" onclick="closeAltaModal()">Cancelar</button>
       <button class="btn btn-green" id="alta-btn" onclick="guardarInstalacion()">Verificar y Guardar</button>
@@ -562,7 +567,12 @@ function showPage(page) {
 // ALTA DE INSTALACIONES
 function openAltaModal() {
   document.getElementById('alta-cliente').value = '';
+  document.getElementById('alta-alias').value = '';
   document.getElementById('alta-url').value = 'https://';
+  document.getElementById('alta-direccion').value = '';
+  document.getElementById('alta-cp').value = '';
+  document.getElementById('alta-comunidad').value = '';
+  document.getElementById('alta-pais').value = 'España';
   document.getElementById('alta-msg').textContent = '';
   document.getElementById('alta-modal').classList.add('open');
 }
@@ -572,14 +582,23 @@ function closeAltaModal() {
 }
 
 async function guardarInstalacion() {
-  const cliente = document.getElementById('alta-cliente').value.trim();
-  const url = document.getElementById('alta-url').value.trim();
-  const msgEl = document.getElementById('alta-msg');
   const btn = document.getElementById('alta-btn');
+  const msgEl = document.getElementById('alta-msg');
+  
+  const datos = {
+    cliente: document.getElementById('alta-cliente').value.trim(),
+    alias: document.getElementById('alta-alias').value.trim(),
+    url_cloudflare: document.getElementById('alta-url').value.trim(),
+    direccion: document.getElementById('alta-direccion').value.trim(),
+    cp: document.getElementById('alta-cp').value.trim(),
+    comunidad: document.getElementById('alta-comunidad').value.trim(),
+    pais: document.getElementById('alta-pais').value.trim(),
+    estado: 'online'
+  };
 
-  if (!cliente || !url || url === 'https://') {
+  if (!datos.cliente || !datos.url_cloudflare || datos.url_cloudflare === 'https://') {
     msgEl.style.color = 'var(--red)';
-    msgEl.textContent = 'Por favor, rellena el cliente y la URL.';
+    msgEl.textContent = '❌ Nombre del cliente y URL son obligatorios.';
     return;
   }
 
@@ -589,7 +608,7 @@ async function guardarInstalacion() {
 
   let estaVivo = false;
   try {
-    await fetch(url, { mode: 'no-cors' });
+    await fetch(datos.url_cloudflare, { mode: 'no-cors' });
     estaVivo = true;
   } catch (e) {
     estaVivo = true; // Forzamos true si el túnel responde aunque bloquee CORS
@@ -603,23 +622,21 @@ async function guardarInstalacion() {
   }
 
   msgEl.style.color = 'var(--green)';
-  msgEl.textContent = '🟢 ¡Conectado! Guardando...';
+  msgEl.textContent = '🟢 ¡Conectado! Guardando en BD...';
 
-  const { error } = await sb.from('instalaciones').insert([{
-    cliente: cliente,
-    url_cloudflare: url,
-    estado: 'online'
-  }]);
-
-  btn.disabled = false;
+  // Intento de guardado real
+  const { error } = await sb.from('instalaciones').insert([datos]);
 
   if (error) {
+    console.error("Error de Supabase:", error);
     msgEl.style.color = 'var(--red)';
-    msgEl.textContent = 'Error: ' + error.message;
+    msgEl.textContent = '❌ ERROR BD: ' + error.message; 
+    btn.disabled = false;
   } else {
     showToast('Instalación guardada');
     closeAltaModal();
     loadDashboard();
+    btn.disabled = false;
   }
 }
 
