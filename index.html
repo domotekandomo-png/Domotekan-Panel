@@ -359,10 +359,11 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
               <th>CPU</th>
               <th>RAM</th>
               <th>Disco</th>
+              <th>Temp.</th>
               <th></th>
             </tr></thead>
             <tbody id="dashboard-servers-body">
-              <tr><td colspan="7" class="loading">Cargando servidores...</td></tr>
+              <tr><td colspan="8" class="loading">Cargando servidores...</td></tr>
             </tbody>
           </table>
         </div>
@@ -393,7 +394,7 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
               <th>CPU</th>
               <th>RAM</th>
               <th>Disco</th>
-              <th>HA</th>
+              <th>Temp.</th>
               <th>Último contacto</th>
               <th></th>
             </tr></thead>
@@ -624,7 +625,6 @@ async function guardarInstalacion() {
   msgEl.style.color = 'var(--green)';
   msgEl.textContent = '🟢 ¡Conectado! Guardando en BD...';
 
-  // Intento de guardado real
   const { error } = await sb.from('instalaciones').insert([datos]);
 
   if (error) {
@@ -662,16 +662,17 @@ function statStr(val) {
   return Math.round(val) + '%';
 }
 
+// AJUSTADO A 7 MINUTOS DE CORTESÍA
 function isOnline(ts) {
   if (!ts) return false;
-  return (Date.now() - new Date(ts).getTime()) < 10 * 60 * 1000;
+  return (Date.now() - new Date(ts).getTime()) < 7 * 60 * 1000;
 }
 
 function serverRow(s, extended=false) {
   const online = isOnline(s.ultimo_heartbeat);
   const estado = online ? 'online' : 'offline';
   const estadoLabel = online ? 'Online' : 'Offline';
-  const cpu = s.cpu_last; const ram = s.ram_last; const disco = s.disco_last;
+  const cpu = s.cpu_last; const ram = s.ram_last; const disco = s.disco_last; const temp = s.temperatura_last;
 
   let row = `<td><div class="server-name">${s.nombre}</div><div class="server-id">${s.id}</div></td>`;
   row += `<td style="font-size:13px;color:var(--text-2)">${s.instalador_nombre || '—'}</td>`;
@@ -679,29 +680,48 @@ function serverRow(s, extended=false) {
   row += `<td><span class="stat ${statClass(cpu)}">${statStr(cpu)}</span></td>`;
   row += `<td><span class="stat ${statClass(ram)}">${statStr(ram)}</span></td>`;
   row += `<td><span class="stat ${statClass(disco)}">${statStr(disco)}</span></td>`;
+  
+  // Novedad: Columna de temperatura
+  const tempStr = temp !== null && temp !== undefined && temp !== 0 ? Math.round(temp) + '°C' : '—';
+  row += `<td><span class="stat ${statClass(temp, 75, 85)}">${tempStr}</span></td>`;
+  
   if (extended) {
-    row += `<td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text-3)">${s.ha_version || '—'}</td>`;
     row += `<td style="font-size:12px;color:var(--text-3)">${timeAgo(s.ultimo_heartbeat)}</td>`;
   }
   row += `<td><button class="action-btn" onclick="window.open('${s.url_cloudflare}')">Conectar</button></td>`;
   return '<tr>' + row + '</tr>';
 }
 
-// LA FUNCIÓN MODIFICADA PARA LEER DE TU TABLA REAL
+// AHORA SÍ LEEMOS LOS DATOS REALES DE LAS TABLAS
 async function getServersWithStats() {
-  const { data: servers, error } = await sb.from('instalaciones').select('*');
-  if (error || !servers) return [];
+  const { data: servers, error: errS } = await sb.from('instalaciones').select('*');
+  if (errS || !servers) return [];
 
-  return servers.map(s => ({
-    id: s.id,
-    nombre: s.cliente,
-    url_cloudflare: s.url_cloudflare,
-    instalador_nombre: 'Admin',
-    ultimo_heartbeat: s.estado === 'online' ? new Date().toISOString() : null,
-    cpu_last: s.estado === 'online' ? 12 : 0,
-    ram_last: s.estado === 'online' ? 38 : 0,
-    disco_last: s.estado === 'online' ? 25 : 0,
-  }));
+  const { data: heartbeats, error: errH } = await sb.from('heartbeats').select('*').order('recibido_en', { ascending: false });
+
+  const latestHb = {};
+  if (heartbeats) {
+    heartbeats.forEach(hb => {
+      if (!latestHb[hb.servidor_id]) {
+        latestHb[hb.servidor_id] = hb;
+      }
+    });
+  }
+
+  return servers.map(s => {
+    const hb = latestHb[s.id];
+    return {
+      id: s.id,
+      nombre: s.cliente,
+      url_cloudflare: s.url_cloudflare,
+      instalador_nombre: 'Admin',
+      ultimo_heartbeat: hb ? (hb.recibido_en || hb.created_at) : null,
+      cpu_last: hb ? hb.cpu : 0,
+      ram_last: hb ? hb.ram : 0,
+      disco_last: hb ? hb.disco : 0,
+      temperatura_last: hb ? hb.temperatura : null
+    };
+  });
 }
 
 // DASHBOARD
@@ -720,7 +740,7 @@ async function loadDashboard() {
   }
 
   const tbody = document.getElementById('dashboard-servers-body');
-  if (!servers.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay servidores registrados aún</td></tr>'; return; }
+  if (!servers.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No hay servidores registrados aún</td></tr>'; return; }
   tbody.innerHTML = servers.slice(0,6).map(s => serverRow(s)).join('');
 }
 
@@ -762,16 +782,21 @@ async function toggleUser(id, activo) {
 
 // ALERTS
 async function loadAlertBadge() {
-  const { data: hbs } = await sb.from('heartbeats').select('servidor_id,cpu,ram,disco,recibido_en').order('recibido_en', { ascending: false });
+  const { data: hbs } = await sb.from('heartbeats').select('servidor_id,cpu,ram,disco,temperatura,recibido_en').order('recibido_en', { ascending: false });
   if (!hbs) return;
   const hbMap = {};
   hbs.forEach(h => { if (!hbMap[h.servidor_id]) hbMap[h.servidor_id] = h; });
   let count = 0;
   Object.values(hbMap).forEach(h => {
-    if ((h.cpu||0) > 80 || (h.ram||0) > 80 || (h.disco||0) > 80) count++;
+    if ((h.cpu||0) > 80 || (h.ram||0) > 80 || (h.disco||0) > 80 || (h.temperatura||0) > 80) count++;
   });
   const badge = document.getElementById('alert-badge');
-  if (count > 0) { badge.style.display = 'inline'; badge.textContent = count; }
+  if (count > 0) {
+    badge.style.display = 'inline';
+    badge.textContent = count;
+  } else {
+    badge.style.display = 'none';
+  }
 }
 
 async function loadAlerts() {
@@ -781,11 +806,12 @@ async function loadAlerts() {
 
   servers.forEach(s => {
     if (!isOnline(s.ultimo_heartbeat)) {
-      alerts.push({ servidor: s.nombre, tipo: 'offline', detalle: 'Sin conexión', cuando: s.ultimo_heartbeat });
+      alerts.push({ servidor: s.nombre, tipo: 'offline', detalle: 'Sin conexión (> 7 min)', cuando: s.ultimo_heartbeat });
     } else {
       if ((s.cpu_last||0) > 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `CPU al ${Math.round(s.cpu_last)}%`, cuando: s.ultimo_heartbeat });
       if ((s.ram_last||0) > 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `RAM al ${Math.round(s.ram_last)}%`, cuando: s.ultimo_heartbeat });
       if ((s.disco_last||0) > 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `Disco al ${Math.round(s.disco_last)}%`, cuando: s.ultimo_heartbeat });
+      if ((s.temperatura_last||0) > 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `Temperatura alta: ${Math.round(s.temperatura_last)}°C`, cuando: s.ultimo_heartbeat });
     }
   });
 
@@ -838,11 +864,6 @@ function closeModal() {
   clearInterval(inviteCountdownInterval);
 }
 
-// CONNECT
-function connectServer(id, nombre) {
-  showToast(`Conectando a ${nombre}...`);
-}
-
 // TOAST
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -850,6 +871,17 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
 }
+
+// MOTOR DE ACTUALIZACIÓN AUTOMÁTICA EN SEGUNDO PLANO
+setInterval(() => {
+  if (currentUser) {
+    const activePage = document.querySelector('.page.active').id;
+    if (activePage === 'page-dashboard') loadDashboard();
+    if (activePage === 'page-servers') loadServers();
+    if (activePage === 'page-alerts') loadAlerts();
+    loadAlertBadge();
+  }
+}, 60000);
 
 // INIT
 sb.auth.onAuthStateChange(async (event, session) => {
