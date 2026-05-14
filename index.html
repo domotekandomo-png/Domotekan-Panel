@@ -132,7 +132,7 @@ nav { flex: 1; padding: 12px 0; overflow-y: auto; }
 /* TOPBAR */
 .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
 .topbar h1 { font-size: 20px; font-weight: 500; }
-.topbar-actions { display: flex; gap: 8px; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: var(--radius-sm);
@@ -171,7 +171,7 @@ tbody tr:last-child { border-bottom: none; }
 tbody tr:hover { background: var(--bg); }
 td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: middle; }
 .server-name { font-weight: 500; font-size: 13px; }
-.server-id { font-size: 11px; color: var(--text-3); font-family: 'DM Mono', monospace; margin-top: 2px; }
+.server-id { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 
 /* BADGE */
 .badge {
@@ -374,6 +374,9 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
       <div class="topbar">
         <h1>Servidores</h1>
         <div class="topbar-actions">
+          <input type="text" id="server-search" placeholder="Buscar por nombre, instalador o dirección..." 
+                 onkeyup="filterServers()" 
+                 style="padding: 8px 14px; border-radius: 6px; border: 0.5px solid var(--border-strong); font-size: 13px; width: 300px;">
           <button class="btn btn-green" onclick="openAltaModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Dar de alta instalación
@@ -469,7 +472,6 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
   </div>
 </div>
 
-<!-- ALTA INSTALACION MODAL AMPLIADO -->
 <div class="modal-overlay" id="alta-modal">
   <div class="modal" style="width: 500px;">
     <h2>🔌 Alta de Instalación Profesional</h2>
@@ -668,13 +670,25 @@ function isOnline(ts) {
   return (Date.now() - new Date(ts).getTime()) < 7 * 60 * 1000;
 }
 
+// BUSCADOR EN TIEMPO REAL
+function filterServers() {
+  const text = document.getElementById('server-search').value.toLowerCase();
+  const rows = document.querySelectorAll('#servers-body tr');
+  
+  rows.forEach(row => {
+    const content = row.textContent.toLowerCase();
+    row.style.display = content.includes(text) ? '' : 'none';
+  });
+}
+
 function serverRow(s, extended=false) {
   const online = isOnline(s.ultimo_heartbeat);
   const estado = online ? 'online' : 'offline';
   const estadoLabel = online ? 'Online' : 'Offline';
   const cpu = s.cpu_last; const ram = s.ram_last; const disco = s.disco_last; const temp = s.temperatura_last;
 
-  let row = `<td><div class="server-name">${s.nombre}</div><div class="server-id">${s.id}</div></td>`;
+  // AQUI PONEMOS LA DIRECCIÓN EN VEZ DEL ID
+  let row = `<td><div class="server-name">${s.nombre}</div><div class="server-id">${s.direccion || 'Sin dirección'}</div></td>`;
   row += `<td style="font-size:13px;color:var(--text-2)">${s.instalador_nombre || '—'}</td>`;
   row += `<td><span class="badge ${estado}"><span class="badge-dot"></span>${estadoLabel}</span></td>`;
   row += `<td><span class="stat ${statClass(cpu)}">${statStr(cpu)}</span></td>`;
@@ -713,6 +727,7 @@ async function getServersWithStats() {
     return {
       id: s.id,
       nombre: s.cliente,
+      direccion: s.direccion, // Rescatamos la dirección de la base de datos
       url_cloudflare: s.url_cloudflare,
       instalador_nombre: 'Admin',
       ultimo_heartbeat: hb ? (hb.recibido_en || hb.created_at) : null,
@@ -872,7 +887,7 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// MOTOR DE ACTUALIZACIÓN AUTOMÁTICA EN SEGUNDO PLANO
+// MOTOR DE ACTUALIZACIÓN AUTOMÁTICA (Bajado a 30 segundos)
 setInterval(() => {
   if (currentUser) {
     const activePage = document.querySelector('.page.active').id;
@@ -881,7 +896,7 @@ setInterval(() => {
     if (activePage === 'page-alerts') loadAlerts();
     loadAlertBadge();
   }
-}, 60000);
+}, 30000);
 
 // INIT
 sb.auth.onAuthStateChange(async (event, session) => {
