@@ -158,9 +158,6 @@ nav { flex: 1; padding: 12px 0; overflow-y: auto; }
 .metric-value.red { color: var(--red); }
 .metric-sub { font-size: 11px; color: var(--text-3); margin-top: 4px; }
 
-/* SECTION */
-.section-title { font-size: 13px; font-weight: 500; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
-
 /* TABLE */
 .table-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
 .table-wrap { overflow-x: auto; }
@@ -198,10 +195,6 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 .action-btn:hover { background: var(--green-light); }
 .action-btn.danger { color: var(--red); }
 .action-btn.danger:hover { background: var(--red-light); }
-
-/* BOTTOM GRID */
-.bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 20px; }
 
 /* INSTALLERS LIST */
 .installer-row {
@@ -348,26 +341,7 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
         <div class="metric"><div class="metric-label">Offline</div><div class="metric-value red" id="m-offline">—</div><div class="metric-sub">sin conexión</div></div>
         <div class="metric superadmin-only"><div class="metric-label">Instaladores</div><div class="metric-value" id="m-installers">—</div><div class="metric-sub">activos</div></div>
       </div>
-      <div class="section-title">Servidores recientes</div>
-      <div class="table-card">
-        <div class="table-wrap">
-          <table>
-            <thead><tr>
-              <th>Instalación</th>
-              <th>Instalador</th>
-              <th>Estado</th>
-              <th>CPU</th>
-              <th>RAM</th>
-              <th>Disco</th>
-              <th>Temp.</th>
-              <th></th>
-            </tr></thead>
-            <tbody id="dashboard-servers-body">
-              <tr><td colspan="8" class="loading">Cargando servidores...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <div class="empty">Próximamente: Gráficos de rendimiento y estadísticas globales</div>
     </div>
 
     <div class="page" id="page-servers">
@@ -507,6 +481,7 @@ let currentUser = null;
 let currentProfile = null;
 let inviteCountdownInterval = null;
 let inviteToken = null;
+let editingServerId = null;
 
 // AUTH
 async function login() {
@@ -577,6 +552,11 @@ function openAltaModal() {
   document.getElementById('alta-comunidad').value = '';
   document.getElementById('alta-pais').value = 'España';
   document.getElementById('alta-msg').textContent = '';
+  
+  const btn = document.getElementById('alta-btn');
+  btn.onclick = guardarInstalacion;
+  btn.textContent = 'Verificar y Guardar';
+  
   document.getElementById('alta-modal').classList.add('open');
 }
 
@@ -642,6 +622,58 @@ async function guardarInstalacion() {
   }
 }
 
+// EDICIÓN DE INSTALACIONES
+async function openEditModal(id) {
+    editingServerId = id;
+    const { data: s } = await sb.from('instalaciones').select('*').eq('id', id).single();
+    
+    if (s) {
+        document.getElementById('alta-cliente').value = s.cliente;
+        document.getElementById('alta-alias').value = s.alias || '';
+        document.getElementById('alta-url').value = s.url_cloudflare;
+        document.getElementById('alta-direccion').value = s.direccion || '';
+        document.getElementById('alta-cp').value = s.cp || '';
+        document.getElementById('alta-comunidad').value = s.comunidad || '';
+        
+        document.getElementById('alta-modal').classList.add('open');
+        
+        const btn = document.getElementById('alta-btn');
+        btn.onclick = actualizarInstalacion;
+        btn.textContent = 'Actualizar Datos';
+    }
+}
+
+async function actualizarInstalacion() {
+    const btn = document.getElementById('alta-btn');
+    btn.disabled = true;
+    
+    const datos = {
+        cliente: document.getElementById('alta-cliente').value.trim(),
+        alias: document.getElementById('alta-alias').value.trim(),
+        url_cloudflare: document.getElementById('alta-url').value.trim(),
+        direccion: document.getElementById('alta-direccion').value.trim(),
+        cp: document.getElementById('alta-cp').value.trim(),
+        comunidad: document.getElementById('alta-comunidad').value.trim()
+    };
+
+    const { error } = await sb.from('instalaciones').update(datos).eq('id', editingServerId);
+
+    if (error) {
+        showToast('Error al actualizar la base de datos');
+        btn.disabled = false;
+    } else {
+        showToast('Instalación actualizada correctamente');
+        closeAltaModal();
+        loadDashboard();
+        loadServers();
+        btn.disabled = false;
+        
+        const btnGuardar = document.getElementById('alta-btn');
+        btnGuardar.onclick = guardarInstalacion;
+        btnGuardar.textContent = 'Verificar y Guardar';
+    }
+}
+
 // HELPERS
 function timeAgo(ts) {
   if (!ts) return '—';
@@ -687,7 +719,6 @@ function serverRow(s, extended=false) {
   const estadoLabel = online ? 'Online' : 'Offline';
   const cpu = s.cpu_last; const ram = s.ram_last; const disco = s.disco_last; const temp = s.temperatura_last;
 
-  // AQUI PONEMOS LA DIRECCIÓN EN VEZ DEL ID
   let row = `<td><div class="server-name">${s.nombre}</div><div class="server-id">${s.direccion || 'Sin dirección'}</div></td>`;
   row += `<td style="font-size:13px;color:var(--text-2)">${s.instalador_nombre || '—'}</td>`;
   row += `<td><span class="badge ${estado}"><span class="badge-dot"></span>${estadoLabel}</span></td>`;
@@ -695,14 +726,19 @@ function serverRow(s, extended=false) {
   row += `<td><span class="stat ${statClass(ram)}">${statStr(ram)}</span></td>`;
   row += `<td><span class="stat ${statClass(disco)}">${statStr(disco)}</span></td>`;
   
-  // Novedad: Columna de temperatura
   const tempStr = temp !== null && temp !== undefined && temp !== 0 ? Math.round(temp) + '°C' : '—';
   row += `<td><span class="stat ${statClass(temp, 75, 85)}">${tempStr}</span></td>`;
   
   if (extended) {
     row += `<td style="font-size:12px;color:var(--text-3)">${timeAgo(s.ultimo_heartbeat)}</td>`;
   }
-  row += `<td><button class="action-btn" onclick="window.open('${s.url_cloudflare}')">Conectar</button></td>`;
+  
+  row += `<td>
+    <div style="display:flex; gap:8px;">
+      <button class="action-btn" onclick="window.open('${s.url_cloudflare}')">Conectar</button>
+      <button class="action-btn" style="color:var(--text-3); font-size:14px;" onclick="openEditModal('${s.id}')" title="Editar servidor">✏️</button>
+    </div>
+  </td>`;
   return '<tr>' + row + '</tr>';
 }
 
@@ -753,10 +789,6 @@ async function loadDashboard() {
     const { count } = await sb.from('usuarios').select('*', {count:'exact',head:true}).eq('rol','instalador').eq('activo',true);
     document.getElementById('m-installers').textContent = count || 0;
   }
-
-  const tbody = document.getElementById('dashboard-servers-body');
-  if (!servers.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No hay servidores registrados aún</td></tr>'; return; }
-  tbody.innerHTML = servers.slice(0,6).map(s => serverRow(s)).join('');
 }
 
 // SERVERS
