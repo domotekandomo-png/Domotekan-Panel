@@ -930,9 +930,24 @@ setInterval(() => {
   }
 }, 30000);
 
-// INIT
+// INIT Y VIGÍA DE SESIÓN
 sb.auth.onAuthStateChange(async (event, session) => {
-  if (session?.user) await initApp(session.user);
+  if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.reload(); 
+  } else if (session?.user) {
+    await initApp(session.user);
+  }
+});
+
+sb.auth.getSession().then(({ data: { session }, error }) => {
+  if (error || !session) {
+    localStorage.clear();
+    sessionStorage.clear();
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
 });
 
 document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
