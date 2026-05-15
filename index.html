@@ -500,12 +500,18 @@ async function login() {
 
 async function initApp(user) {
   currentUser = user;
-  const { data: profile } = await sb.from('usuarios').select('*').eq('email', user.email).single();
-  if (!profile) {
+  
+  // Le hemos añadido el "error" aquí por si falla la base de datos, para que no se quede mudo
+  const { data: profile, error } = await sb.from('usuarios').select('*').eq('email', user.email).single();
+  
+  if (error || !profile) {
     await sb.auth.signOut();
-    document.getElementById('auth-error').textContent = 'Usuario no encontrado en el sistema.';
+    document.getElementById('auth-error').textContent = 'Error al cargar perfil. Revisa los permisos.';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
     return;
   }
+  
   currentProfile = profile;
 
   document.getElementById('auth-screen').style.display = 'none';
@@ -526,7 +532,8 @@ async function initApp(user) {
 
 async function logout() {
   await sb.auth.signOut();
-  location.reload();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
 }
 
 // NAVIGATION
@@ -594,7 +601,7 @@ async function guardarInstalacion() {
     await fetch(datos.url_cloudflare, { mode: 'no-cors' });
     estaVivo = true;
   } catch (e) {
-    estaVivo = true; // Forzamos true si el túnel responde aunque bloquee CORS
+    estaVivo = true;
   }
 
   if (!estaVivo) {
@@ -696,7 +703,6 @@ function statStr(val) {
   return Math.round(val) + '%';
 }
 
-// AJUSTADO A 7 MINUTOS DE CORTESÍA
 function isOnline(ts) {
   if (!ts) return false;
   return (Date.now() - new Date(ts).getTime()) < 7 * 60 * 1000;
@@ -742,7 +748,7 @@ function serverRow(s, extended=false) {
   return '<tr>' + row + '</tr>';
 }
 
-// AHORA SÍ LEEMOS LOS DATOS REALES DE LAS TABLAS
+// LECTURA DE DATOS
 async function getServersWithStats() {
   const { data: servers, error: errS } = await sb.from('instalaciones').select('*');
   if (errS || !servers) return [];
@@ -763,7 +769,7 @@ async function getServersWithStats() {
     return {
       id: s.id,
       nombre: s.cliente,
-      direccion: s.direccion, // Rescatamos la dirección de la base de datos
+      direccion: s.direccion, 
       url_cloudflare: s.url_cloudflare,
       instalador_nombre: 'Admin',
       ultimo_heartbeat: hb ? (hb.recibido_en || hb.created_at) : null,
@@ -919,7 +925,7 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// MOTOR DE ACTUALIZACIÓN AUTOMÁTICA (Bajado a 30 segundos)
+// MOTOR DE ACTUALIZACIÓN AUTOMÁTICA
 setInterval(() => {
   if (currentUser) {
     const activePage = document.querySelector('.page.active').id;
@@ -930,21 +936,24 @@ setInterval(() => {
   }
 }, 30000);
 
-// INIT Y VIGÍA DE SESIÓN
+// ==========================================
+// EL NUEVO VIGÍA DE SESIÓN (A prueba de fallos)
+// ==========================================
+
 sb.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.reload(); 
+  if (event === 'SIGNED_OUT') {
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
   } else if (session?.user) {
     await initApp(session.user);
   }
 });
 
+// Comprobación inicial suave al cargar la página
 sb.auth.getSession().then(({ data: { session }, error }) => {
-  if (error || !session) {
-    localStorage.clear();
-    sessionStorage.clear();
+  if (error) {
+    sb.auth.signOut(); // Si el token está corrupto, pedimos a Supabase que lo mate
+  } else if (!session) {
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
   }
