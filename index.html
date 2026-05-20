@@ -348,8 +348,8 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
       <div class="topbar">
         <h1>Servidores</h1>
         <div class="topbar-actions">
-          <input type="text" id="server-search" placeholder="Buscar por nombre, instalador o dirección..." 
-                 onkeyup="filterServers()" 
+          <input type="text" id="server-search" placeholder="Buscar por nombre, instalador o dirección..."
+                 onkeyup="filterServers()"
                  style="padding: 8px 14px; border-radius: 6px; border: 0.5px solid var(--border-strong); font-size: 13px; width: 300px;">
           <button class="btn btn-green" onclick="openAltaModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -460,9 +460,9 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
       <div class="field"><label>Comunidad</label><input type="text" id="alta-comunidad"></div>
     </div>
     <div class="field"><label>País</label><input type="text" id="alta-pais" value="España"></div>
-    
+
     <div id="alta-msg" style="font-size: 12px; margin-bottom: 10px; min-height: 18px; font-weight: 500;"></div>
-    
+
     <div class="modal-actions">
       <button class="btn" onclick="closeAltaModal()">Cancelar</button>
       <button class="btn btn-green" id="alta-btn" onclick="guardarInstalacion()">Verificar y Guardar</button>
@@ -482,6 +482,7 @@ let currentProfile = null;
 let inviteCountdownInterval = null;
 let inviteToken = null;
 let editingServerId = null;
+let appInitialized = false;
 
 // AUTH
 async function login() {
@@ -492,18 +493,16 @@ async function login() {
 
   if (!email || !pass) { errEl.textContent = 'Rellena email y contraseña.'; return; }
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
   if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; return; }
-
-  await initApp(data.user);
+  // onAuthStateChange gestiona el resto — no llamamos a initApp aquí
 }
 
 async function initApp(user) {
   currentUser = user;
-  
-  // Le hemos añadido el "error" aquí por si falla la base de datos, para que no se quede mudo
+
   const { data: profile, error } = await sb.from('usuarios').select('*').eq('email', user.email).single();
-  
+
   if (error || !profile) {
     await sb.auth.signOut();
     document.getElementById('auth-error').textContent = 'Error al cargar perfil. Revisa los permisos.';
@@ -511,7 +510,7 @@ async function initApp(user) {
     document.getElementById('auth-screen').style.display = 'flex';
     return;
   }
-  
+
   currentProfile = profile;
 
   document.getElementById('auth-screen').style.display = 'none';
@@ -531,9 +530,9 @@ async function initApp(user) {
 }
 
 async function logout() {
+  appInitialized = false;
   await sb.auth.signOut();
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('auth-screen').style.display = 'flex';
+  // onAuthStateChange SIGNED_OUT gestiona el resto
 }
 
 // NAVIGATION
@@ -559,11 +558,11 @@ function openAltaModal() {
   document.getElementById('alta-comunidad').value = '';
   document.getElementById('alta-pais').value = 'España';
   document.getElementById('alta-msg').textContent = '';
-  
+
   const btn = document.getElementById('alta-btn');
   btn.onclick = guardarInstalacion;
   btn.textContent = 'Verificar y Guardar';
-  
+
   document.getElementById('alta-modal').classList.add('open');
 }
 
@@ -574,7 +573,7 @@ function closeAltaModal() {
 async function guardarInstalacion() {
   const btn = document.getElementById('alta-btn');
   const msgEl = document.getElementById('alta-msg');
-  
+
   const datos = {
     cliente: document.getElementById('alta-cliente').value.trim(),
     alias: document.getElementById('alta-alias').value.trim(),
@@ -619,7 +618,7 @@ async function guardarInstalacion() {
   if (error) {
     console.error("Error de Supabase:", error);
     msgEl.style.color = 'var(--red)';
-    msgEl.textContent = '❌ ERROR BD: ' + error.message; 
+    msgEl.textContent = '❌ ERROR BD: ' + error.message;
     btn.disabled = false;
   } else {
     showToast('Instalación guardada');
@@ -633,7 +632,7 @@ async function guardarInstalacion() {
 async function openEditModal(id) {
     editingServerId = id;
     const { data: s } = await sb.from('instalaciones').select('*').eq('id', id).single();
-    
+
     if (s) {
         document.getElementById('alta-cliente').value = s.cliente;
         document.getElementById('alta-alias').value = s.alias || '';
@@ -641,9 +640,9 @@ async function openEditModal(id) {
         document.getElementById('alta-direccion').value = s.direccion || '';
         document.getElementById('alta-cp').value = s.cp || '';
         document.getElementById('alta-comunidad').value = s.comunidad || '';
-        
+
         document.getElementById('alta-modal').classList.add('open');
-        
+
         const btn = document.getElementById('alta-btn');
         btn.onclick = actualizarInstalacion;
         btn.textContent = 'Actualizar Datos';
@@ -653,7 +652,7 @@ async function openEditModal(id) {
 async function actualizarInstalacion() {
     const btn = document.getElementById('alta-btn');
     btn.disabled = true;
-    
+
     const datos = {
         cliente: document.getElementById('alta-cliente').value.trim(),
         alias: document.getElementById('alta-alias').value.trim(),
@@ -674,7 +673,7 @@ async function actualizarInstalacion() {
         loadDashboard();
         loadServers();
         btn.disabled = false;
-        
+
         const btnGuardar = document.getElementById('alta-btn');
         btnGuardar.onclick = guardarInstalacion;
         btnGuardar.textContent = 'Verificar y Guardar';
@@ -712,7 +711,7 @@ function isOnline(ts) {
 function filterServers() {
   const text = document.getElementById('server-search').value.toLowerCase();
   const rows = document.querySelectorAll('#servers-body tr');
-  
+
   rows.forEach(row => {
     const content = row.textContent.toLowerCase();
     row.style.display = content.includes(text) ? '' : 'none';
@@ -731,14 +730,14 @@ function serverRow(s, extended=false) {
   row += `<td><span class="stat ${statClass(cpu)}">${statStr(cpu)}</span></td>`;
   row += `<td><span class="stat ${statClass(ram)}">${statStr(ram)}</span></td>`;
   row += `<td><span class="stat ${statClass(disco)}">${statStr(disco)}</span></td>`;
-  
+
   const tempStr = temp !== null && temp !== undefined && temp !== 0 ? Math.round(temp) + '°C' : '—';
   row += `<td><span class="stat ${statClass(temp, 75, 85)}">${tempStr}</span></td>`;
-  
+
   if (extended) {
     row += `<td style="font-size:12px;color:var(--text-3)">${timeAgo(s.ultimo_heartbeat)}</td>`;
   }
-  
+
   row += `<td>
     <div style="display:flex; gap:8px;">
       <button class="action-btn" onclick="window.open('${s.url_cloudflare}')">Conectar</button>
@@ -769,7 +768,7 @@ async function getServersWithStats() {
     return {
       id: s.id,
       nombre: s.cliente,
-      direccion: s.direccion, 
+      direccion: s.direccion,
       url_cloudflare: s.url_cloudflare,
       instalador_nombre: 'Admin',
       ultimo_heartbeat: hb ? (hb.recibido_en || hb.created_at) : null,
@@ -937,25 +936,28 @@ setInterval(() => {
 }, 30000);
 
 // ==========================================
-// EL NUEVO VIGÍA DE SESIÓN (A prueba de fallos)
+// GESTOR DE SESIÓN — PUNTO DE ENTRADA ÚNICO
 // ==========================================
 
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_OUT') {
+    appInitialized = false;
+    currentUser = null;
+    currentProfile = null;
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
-  } else if (session?.user) {
-    await initApp(session.user);
+    return;
   }
-});
 
-// Comprobación inicial suave al cargar la página
-sb.auth.getSession().then(({ data: { session }, error }) => {
-  if (error) {
-    sb.auth.signOut(); // Si el token está corrupto, pedimos a Supabase que lo mate
-  } else if (!session) {
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('auth-screen').style.display = 'flex';
+  if (event === 'TOKEN_REFRESHED' && session?.user) {
+    // Solo actualizamos la referencia al usuario, sin reinicializar la app
+    currentUser = session.user;
+    return;
+  }
+
+  if (session?.user && !appInitialized) {
+    appInitialized = true;
+    await initApp(session.user);
   }
 });
 
