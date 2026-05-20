@@ -693,6 +693,28 @@ async function actualizarInstalacion() {
     }
 }
 
+// ELIMINACIÓN DE INSTALACIONES
+async function eliminarInstalacion(id, nombre) {
+  // 1. Pedimos confirmación para evitar borrados accidentales
+  const seguro = confirm(`⚠️ ATENCIÓN:\n\n¿Estás seguro de que quieres eliminar la instalación "${nombre}"?\n\nEsta acción no se puede deshacer y el servidor desaparecerá de este panel.`);
+  
+  if (!seguro) return; // Si cancela, no hacemos nada
+
+  // 2. Ejecutamos el borrado en Supabase
+  const { error } = await sb.from('instalaciones').delete().eq('id', id);
+
+  // 3. Mostramos resultado y actualizamos la tabla
+  if (error) {
+    console.error("Error al eliminar:", error);
+    showToast('❌ Error al eliminar la instalación');
+  } else {
+    showToast('🗑️ Instalación eliminada');
+    // Recargamos los datos para que desaparezca visualmente
+    loadDashboard();
+    loadServers();
+  }
+}
+
 // HELPERS
 function timeAgo(ts) {
   if (!ts) return '—';
@@ -755,6 +777,7 @@ function serverRow(s, extended=false) {
     <div style="display:flex; gap:8px;">
       <button class="action-btn" onclick="window.open('${s.url_cloudflare}')">Conectar</button>
       <button class="action-btn" style="color:var(--text-3); font-size:14px;" onclick="openEditModal('${s.id}')" title="Editar servidor">✏️</button>
+      <button class="action-btn danger" style="font-size:14px;" onclick="eliminarInstalacion('${s.id}', '${s.nombre}')" title="Eliminar servidor">🗑️</button>
     </div>
   </td>`;
   return '<tr>' + row + '</tr>';
