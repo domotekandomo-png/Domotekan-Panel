@@ -489,13 +489,26 @@ async function login() {
   const email = document.getElementById('auth-email').value.trim();
   const pass = document.getElementById('auth-pass').value;
   const errEl = document.getElementById('auth-error');
+  const btn = document.querySelector('.btn-primary');
   errEl.textContent = '';
 
   if (!email || !pass) { errEl.textContent = 'Rellena email y contraseña.'; return; }
 
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if (error) { errEl.textContent = 'Email o contraseña incorrectos.'; return; }
-  // onAuthStateChange gestiona el resto — no llamamos a initApp aquí
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      errEl.textContent = 'Email o contraseña incorrectos.';
+      btn.disabled = false;
+      btn.textContent = 'Entrar';
+    }
+  } catch (e) {
+    errEl.textContent = 'Error de conexión. Inténtalo de nuevo.';
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
 }
 
 async function initApp(user) {
@@ -946,18 +959,23 @@ sb.auth.onAuthStateChange(async (event, session) => {
     currentProfile = null;
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
+    const btn = document.querySelector('.btn-primary');
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
     return;
   }
 
-  if (event === 'TOKEN_REFRESHED' && session?.user) {
-    // Solo actualizamos la referencia al usuario, sin reinicializar la app
-    currentUser = session.user;
-    return;
-  }
+  if (!session?.user) return;
 
-  if (session?.user && !appInitialized) {
+  currentUser = session.user;
+
+  if (!appInitialized) {
     appInitialized = true;
-    await initApp(session.user);
+    try {
+      await initApp(session.user);
+    } catch (e) {
+      appInitialized = false;
+      await sb.auth.signOut();
+    }
   }
 });
 
