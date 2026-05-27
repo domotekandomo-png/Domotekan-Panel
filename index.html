@@ -662,10 +662,15 @@ async function initApp(user) {
   const { data: profile, error } = await sb.from('usuarios').select('*').eq('email', user.email).single();
 
   if (error || !profile) {
+    const msg = error ? `[${error.code}] ${error.message}` : 'Usuario no encontrado en la tabla usuarios.';
+    console.error('[initApp] Error cargando perfil:', msg, error);
     await sb.auth.signOut();
-    document.getElementById('auth-error').textContent = 'Error al cargar perfil. Revisa los permisos.';
+    const errEl = document.getElementById('auth-error');
+    if (errEl) errEl.textContent = 'Error al cargar perfil: ' + msg;
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
+    const btn = document.querySelector('.btn-primary');
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
     return;
   }
 
@@ -674,10 +679,11 @@ async function initApp(user) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
-  document.getElementById('sidebar-name').textContent = profile.nombre;
+  const nombre = profile.nombre || profile.email || '?';
+  document.getElementById('sidebar-name').textContent = nombre;
   document.getElementById('sidebar-email').textContent = profile.email;
-  document.getElementById('sidebar-avatar').textContent = profile.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  document.getElementById('sidebar-role').textContent = profile.rol;
+  document.getElementById('sidebar-avatar').textContent = nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('sidebar-role').textContent = profile.rol || '—';
 
   if (profile.rol !== 'superadmin') {
     document.querySelectorAll('.superadmin-only').forEach(el => el.style.display = 'none');
