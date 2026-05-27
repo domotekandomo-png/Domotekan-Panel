@@ -963,9 +963,13 @@ function serverRow(s) {
   const estado = !provisionado ? 'warn' : (online ? 'online' : 'offline');
   const estadoLabel = !provisionado ? 'Sin asignar' : (online ? 'Online' : 'Offline');
 
+  const subtitle = (s.alias && s.alias !== s.nombre) ? s.alias
+                 : s.direccion ? s.direccion
+                 : (s.hw_id && s.hw_id !== s.nombre) ? s.hw_id
+                 : null;
   let row = `<td>
     <div class="server-name">${s.nombre}</div>
-    ${s.hw_id ? `<div class="server-id"><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${s.hw_id}</span></div>` : ''}
+    ${subtitle ? `<div class="server-id">${subtitle}</div>` : ''}
   </td>`;
   row += `<td><span class="badge ${estado}"><span class="badge-dot"></span>${estadoLabel}</span></td>`;
   row += `<td style="font-size:13px;color:var(--text-2)">${s.direccion || s.alias || '—'}</td>`;
