@@ -1374,6 +1374,22 @@ sb.auth.onAuthStateChange(async (event, session) => {
 });
 
 document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+// RESTAURAR SESIÓN AL REFRESCAR
+// onAuthStateChange puede llegar tarde en algunos navegadores.
+// Con getSession() forzamos la comprobación inmediatamente al cargar.
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user && !appInitialized) {
+    appInitialized = true;
+    try {
+      await initApp(session.user);
+    } catch (e) {
+      appInitialized = false;
+      await sb.auth.signOut();
+    }
+  }
+})();
 </script>
 </body>
 </html>
