@@ -799,7 +799,7 @@ async function guardarInstalacion() {
 // EDICIÓN DE INSTALACIONES
 async function openEditModal(id) {
     editingServerId = id;
-    const { data: s } = await sb.from('instalaciones').select('*').eq('id', id).single();
+    const { data: s } = await sb.from('hardware_devices').select('*').eq('id', id).single();
 
     if (s) {
         // Título e indicador de modo edición
@@ -808,10 +808,8 @@ async function openEditModal(id) {
         // HW ID: mostrar pero no editable
         const hwIdEl = document.getElementById('alta-hwid');
         if (hwIdEl) { hwIdEl.value = s.hw_id || ''; hwIdEl.disabled = true; }
-        const hwWrap = document.getElementById('alta-hwid-wrap');
-        if (hwWrap && !s.hw_id) hwWrap.style.display = 'none'; // Ocultar si no tiene hw_id (legacy)
 
-        document.getElementById('alta-cliente').value = s.cliente || s.client_name || '';
+        document.getElementById('alta-cliente').value = s.client_name || '';
         document.getElementById('alta-alias').value = s.alias || '';
         document.getElementById('alta-direccion').value = s.direccion || '';
         document.getElementById('alta-cp').value = s.cp || '';
@@ -823,7 +821,7 @@ async function openEditModal(id) {
         const urlWrap = document.getElementById('alta-url-wrap');
         const urlEl   = document.getElementById('alta-url');
         if (urlWrap) urlWrap.style.display = 'block';
-        if (urlEl)   urlEl.value = s.client_url || s.url_cloudflare || '';
+        if (urlEl)   urlEl.value = s.client_url || '';
 
         document.getElementById('alta-modal').classList.add('open');
 
@@ -839,7 +837,7 @@ async function actualizarInstalacion() {
 
     const urlVal = (document.getElementById('alta-url') || {}).value?.trim() || null;
     const datos = {
-        cliente: document.getElementById('alta-cliente').value.trim(),
+        client_name: document.getElementById('alta-cliente').value.trim(),
         alias: document.getElementById('alta-alias').value.trim(),
         direccion: document.getElementById('alta-direccion').value.trim(),
         cp: document.getElementById('alta-cp').value.trim(),
@@ -848,7 +846,7 @@ async function actualizarInstalacion() {
         ...(urlVal !== null && { client_url: urlVal })
     };
 
-    const { error } = await sb.from('instalaciones').update(datos).eq('id', editingServerId);
+    const { error } = await sb.from('hardware_devices').update(datos).eq('id', editingServerId);
 
     if (error) {
         showToast('Error al actualizar la base de datos');
@@ -872,7 +870,7 @@ async function eliminarInstalacion(id, nombre) {
 
   if (!seguro) return;
 
-  const { error } = await sb.from('instalaciones').delete().eq('id', id);
+  const { error } = await sb.from('hardware_devices').delete().eq('id', id);
 
 
   if (error) {
@@ -925,9 +923,9 @@ function filterServers() {
 
 function serverRow(s, extended=false) {
   const online = isOnline(s.ultimo_heartbeat);
-  const provisionado = s.status === 'assigned';
+  const provisionado = s.status === 'active';
   const estado = !provisionado ? 'warn' : (online ? 'online' : 'offline');
-  const estadoLabel = !provisionado ? 'Pendiente' : (online ? 'Online' : 'Offline');
+  const estadoLabel = !provisionado ? 'Sin asignar' : (online ? 'Online' : 'Offline');
   const cpu = s.cpu_last; const ram = s.ram_last; const disco = s.disco_last; const temp = s.temperatura_last;
 
   let row = `<td>
@@ -959,39 +957,27 @@ function serverRow(s, extended=false) {
 }
 
 // ==========================================
-// LECTURA DE DATOS — tabla única instalaciones
+// LECTURA DE DATOS — tabla hardware_devices
 // ==========================================
 async function getServersWithStats() {
-  const { data: servers, error: errSrv } = await sb.from('instalaciones').select('*').order('id', { ascending: false });
-  if (errSrv) console.error('[getServersWithStats] instalaciones error:', errSrv);
-  const { data: heartbeats, error: errHb } = await sb.from('heartbeats').select('*').order('recibido_en', { ascending: false });
-  if (errHb) console.error('[getServersWithStats] heartbeats error:', errHb);
-
-  // Índice heartbeats: por hw_id (nuevo) y por servidor_id (legacy)
-  const latestHb = {};
-  if (heartbeats) {
-    heartbeats.forEach(hb => {
-      if (hb.hw_id     && !latestHb[hb.hw_id])     latestHb[hb.hw_id]     = hb;
-      if (hb.servidor_id && !latestHb[hb.servidor_id]) latestHb[hb.servidor_id] = hb;
-    });
-  }
+  const { data: servers, error: errSrv } = await sb.from('hardware_devices').select('*').order('id', { ascending: false });
+  if (errSrv) console.error('[getServersWithStats] hardware_devices error:', errSrv);
 
   return (servers || []).map(s => {
-    const hb = latestHb[s.hw_id] || latestHb[s.id] || null;
     return {
       id:               s.id,
       hw_id:            s.hw_id || null,
-      nombre:           s.cliente || s.client_name || s.alias || s.hw_id || '—',
+      nombre:           s.client_name || s.alias || s.hw_id || '—',
       alias:            s.alias,
       direccion:        s.direccion,
-      status:           s.status || 'assigned',        // legacy rows sin status = ya asignados
-      client_url:       s.client_url || s.url_cloudflare || null,
+      status:           s.status || 'pending',
+      client_url:       s.client_url || null,
       instalador_nombre: s.assigned_by || 'Admin',
-      ultimo_heartbeat: hb ? (hb.recibido_en || hb.created_at) : (s.last_seen || null),
-      cpu_last:         hb ? hb.cpu         : 0,
-      ram_last:         hb ? hb.ram         : 0,
-      disco_last:       hb ? hb.disco       : 0,
-      temperatura_last: hb ? hb.temperatura : null
+      ultimo_heartbeat: s.last_seen || null,
+      cpu_last:         0,
+      ram_last:         0,
+      disco_last:       0,
+      temperatura_last: null
     };
   });
 }
@@ -1076,12 +1062,12 @@ async function loadCharts() {
 // DASHBOARD
 async function loadDashboard() {
   const servers = await getServersWithStats();
-  const assigned = servers.filter(s => s.status === 'assigned');
-  const online = assigned.filter(s => isOnline(s.ultimo_heartbeat)).length;
-  const offline = assigned.length - online;
-  const pending = servers.filter(s => s.status !== 'assigned').length;
+  const active = servers.filter(s => s.status === 'active');
+  const online = active.filter(s => isOnline(s.ultimo_heartbeat)).length;
+  const offline = active.length - online;
+  const pending = servers.filter(s => s.status !== 'active').length;
 
-  document.getElementById('m-total').textContent = assigned.length;
+  document.getElementById('m-total').textContent = active.length;
   document.getElementById('m-online').textContent = online;
   document.getElementById('m-offline').textContent = offline;
 
@@ -1091,7 +1077,7 @@ async function loadDashboard() {
   const hwAssigned = document.getElementById('m-hw-assigned');
   if (hwTotal) hwTotal.textContent = servers.length;
   if (hwPending) hwPending.textContent = pending;
-  if (hwAssigned) hwAssigned.textContent = assigned.length;
+  if (hwAssigned) hwAssigned.textContent = active.length;
 
   if (currentProfile && currentProfile.rol === 'superadmin') {
     const { count } = await sb.from('usuarios').select('*', {count:'exact',head:true}).eq('rol','instalador').eq('activo',true);
@@ -1105,25 +1091,31 @@ async function loadDashboard() {
 async function loadHardware() {
   const tbody = document.getElementById('hardware-body');
   tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando...</td></tr>';
-  const { data: rows, error } = await sb.from('instalaciones').select('*').order('id', { ascending: false });
+  const { data: rows, error } = await sb.from('hardware_devices').select('*').order('id', { ascending: false });
   if (error) { console.error('[loadHardware]', error); tbody.innerHTML = '<tr><td colspan="6" class="empty">Error al cargar</td></tr>'; return; }
   if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay hardware registrado aún</td></tr>'; return; }
 
-  const pending = rows.filter(r => r.status !== 'assigned').length;
-  const assigned = rows.filter(r => r.status === 'assigned').length;
+  const pending = rows.filter(r => r.status !== 'active').length;
+  const active  = rows.filter(r => r.status === 'active').length;
   const pEl = document.getElementById('hw-stat-pending');
   const aEl = document.getElementById('hw-stat-assigned');
   if (pEl) pEl.textContent = pending + ' pendientes';
-  if (aEl) aEl.textContent = assigned + ' asignados';
+  if (aEl) aEl.textContent = active  + ' dados de alta';
 
-  tbody.innerHTML = rows.map(r => `<tr>
-    <td style="font-family:'DM Mono',monospace;font-size:12px">${r.hw_id || '—'}</td>
-    <td><span class="badge ${r.status === 'assigned' ? 'online' : 'warn'}"><span class="badge-dot"></span>${r.status === 'assigned' ? 'Asignado' : 'Pendiente'}</span></td>
-    <td>${r.cliente || r.client_name || '—'}</td>
-    <td style="font-size:12px">${r.client_url ? `<a href="${r.client_url}" target="_blank" style="color:var(--blue)">${r.client_url}</a>` : '—'}</td>
-    <td style="font-family:'DM Mono',monospace;font-size:12px">${r.wg_client_ip || '—'}</td>
-    <td style="font-size:12px;color:var(--text-3)">${r.last_seen ? timeAgo(r.last_seen) : '—'}</td>
-  </tr>`).join('');
+  tbody.innerHTML = rows.map(r => {
+    const isActive = r.status === 'active';
+    const isOnlineNow = isActive && isOnline(r.last_seen);
+    const badgeClass = !isActive ? 'warn' : (isOnlineNow ? 'online' : 'offline');
+    const badgeLabel = !isActive ? 'Sin asignar' : (isOnlineNow ? 'Online' : 'Offline');
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.hw_id || '—'}</td>
+      <td><span class="badge ${badgeClass}"><span class="badge-dot"></span>${badgeLabel}</span></td>
+      <td>${r.client_name || '—'}</td>
+      <td style="font-size:12px">${r.client_url ? `<a href="${r.client_url}" target="_blank" style="color:var(--blue)">${r.client_url}</a>` : '—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.wg_client_ip || '—'}</td>
+      <td style="font-size:12px;color:var(--text-3)">${r.last_seen ? timeAgo(r.last_seen) : '—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // SERVERS
