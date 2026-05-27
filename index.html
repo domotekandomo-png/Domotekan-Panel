@@ -987,7 +987,9 @@ function serverRow(s) {
 // LECTURA DE DATOS — tabla hardware_devices
 // ==========================================
 async function getServersWithStats() {
-  const { data: servers, error: errSrv } = await sb.from('hardware_devices').select('*').order('id', { ascending: false });
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
+  const query = sb.from('hardware_devices').select('*').order('id', { ascending: false });
+  const { data: servers, error: errSrv } = await Promise.race([query, timeout]).catch(e => ({ data: null, error: e }));
   if (errSrv) console.error('[getServersWithStats] hardware_devices error:', errSrv);
 
   return (servers || []).map(s => {
@@ -1210,12 +1212,22 @@ function closeDetailPanel() {
 }
 
 // SERVERS
+let _loadServersInProgress = false;
 async function loadServers() {
+  if (_loadServersInProgress) return;
+  _loadServersInProgress = true;
   const tbody = document.getElementById('servers-body');
   tbody.innerHTML = '<tr><td colspan="9" class="loading">Cargando...</td></tr>';
-  const servers = await getServersWithStats();
-  if (!servers.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">No hay servidores registrados</td></tr>'; return; }
-  tbody.innerHTML = servers.map(s => serverRow(s)).join('');
+  try {
+    const servers = await getServersWithStats();
+    if (!servers.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">No hay servidores registrados</td></tr>'; return; }
+    tbody.innerHTML = servers.map(s => serverRow(s)).join('');
+  } catch (e) {
+    console.error('[loadServers] error:', e);
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">Error al cargar los datos. <button onclick="loadServers()" style="margin-left:8px;padding:4px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);cursor:pointer;font-size:12px">Reintentar</button></td></tr>';
+  } finally {
+    _loadServersInProgress = false;
+  }
 }
 
 // INSTALLERS
