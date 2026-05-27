@@ -660,6 +660,7 @@ function showPage(page) {
 
   if (page === 'dashboard') loadDashboard();
   if (page === 'servers') loadServers();
+  if (page === 'hardware') loadHardware();
   if (page === 'installers') loadInstallers();
   if (page === 'alerts') loadAlerts();
 }
@@ -927,8 +928,10 @@ function serverRow(s, extended=false) {
 // LECTURA DE DATOS — tabla única instalaciones
 // ==========================================
 async function getServersWithStats() {
-  const { data: servers } = await sb.from('instalaciones').select('*').order('assigned_at', { ascending: false, nullsFirst: false });
-  const { data: heartbeats } = await sb.from('heartbeats').select('*').order('recibido_en', { ascending: false });
+  const { data: servers, error: errSrv } = await sb.from('instalaciones').select('*').order('id', { ascending: false });
+  if (errSrv) console.error('[getServersWithStats] instalaciones error:', errSrv);
+  const { data: heartbeats, error: errHb } = await sb.from('heartbeats').select('*').order('recibido_en', { ascending: false });
+  if (errHb) console.error('[getServersWithStats] heartbeats error:', errHb);
 
   // Índice heartbeats: por hw_id (nuevo) y por servidor_id (legacy)
   const latestHb = {};
@@ -1039,12 +1042,22 @@ async function loadCharts() {
 // DASHBOARD
 async function loadDashboard() {
   const servers = await getServersWithStats();
-  const online = servers.filter(s => isOnline(s.ultimo_heartbeat)).length;
-  const offline = servers.length - online;
+  const assigned = servers.filter(s => s.status === 'assigned');
+  const online = assigned.filter(s => isOnline(s.ultimo_heartbeat)).length;
+  const offline = assigned.length - online;
+  const pending = servers.filter(s => s.status !== 'assigned').length;
 
-  document.getElementById('m-total').textContent = servers.length;
+  document.getElementById('m-total').textContent = assigned.length;
   document.getElementById('m-online').textContent = online;
   document.getElementById('m-offline').textContent = offline;
+
+  // Hardware provisioning counters
+  const hwTotal = document.getElementById('m-hw-total');
+  const hwPending = document.getElementById('m-hw-pending');
+  const hwAssigned = document.getElementById('m-hw-assigned');
+  if (hwTotal) hwTotal.textContent = servers.length;
+  if (hwPending) hwPending.textContent = pending;
+  if (hwAssigned) hwAssigned.textContent = assigned.length;
 
   if (currentProfile && currentProfile.rol === 'superadmin') {
     const { count } = await sb.from('usuarios').select('*', {count:'exact',head:true}).eq('rol','instalador').eq('activo',true);
@@ -1052,6 +1065,31 @@ async function loadDashboard() {
   }
 
   loadCharts();
+}
+
+// HARDWARE PAGE
+async function loadHardware() {
+  const tbody = document.getElementById('hardware-body');
+  tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando...</td></tr>';
+  const { data: rows, error } = await sb.from('instalaciones').select('*').order('id', { ascending: false });
+  if (error) { console.error('[loadHardware]', error); tbody.innerHTML = '<tr><td colspan="6" class="empty">Error al cargar</td></tr>'; return; }
+  if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay hardware registrado aún</td></tr>'; return; }
+
+  const pending = rows.filter(r => r.status !== 'assigned').length;
+  const assigned = rows.filter(r => r.status === 'assigned').length;
+  const pEl = document.getElementById('hw-stat-pending');
+  const aEl = document.getElementById('hw-stat-assigned');
+  if (pEl) pEl.textContent = pending + ' pendientes';
+  if (aEl) aEl.textContent = assigned + ' asignados';
+
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td style="font-family:'DM Mono',monospace;font-size:12px">${r.hw_id || '—'}</td>
+    <td><span class="badge ${r.status === 'assigned' ? 'online' : 'warn'}"><span class="badge-dot"></span>${r.status === 'assigned' ? 'Asignado' : 'Pendiente'}</span></td>
+    <td>${r.cliente || r.client_name || '—'}</td>
+    <td style="font-size:12px">${r.client_url ? `<a href="${r.client_url}" target="_blank" style="color:var(--blue)">${r.client_url}</a>` : '—'}</td>
+    <td style="font-family:'DM Mono',monospace;font-size:12px">${r.wg_client_ip || '—'}</td>
+    <td style="font-size:12px;color:var(--text-3)">${r.last_seen ? timeAgo(r.last_seen) : '—'}</td>
+  </tr>`).join('');
 }
 
 // SERVERS
