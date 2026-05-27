@@ -965,7 +965,6 @@ function serverRow(s) {
 
   const subtitle = (s.alias && s.alias !== s.nombre) ? s.alias
                  : s.direccion ? s.direccion
-                 : (s.hw_id && s.hw_id !== s.nombre) ? s.hw_id
                  : null;
   let row = `<td>
     <div class="server-name">${s.nombre}</div>
