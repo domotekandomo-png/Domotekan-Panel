@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Domotekan — Panel</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -179,6 +180,8 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 .badge.online { background: var(--green-light); color: var(--green-dark); }
 .badge.offline { background: var(--red-light); color: var(--red); }
 .badge.warn { background: var(--amber-light); color: var(--amber); }
+.badge.pending { background: #EDE9FE; color: #6D28D9; }
+.badge.provisioned { background: var(--blue-light); color: var(--blue); }
 
 /* STAT */
 .stat { font-family: 'DM Mono', monospace; font-size: 12px; }
@@ -270,7 +273,15 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 
 <div id="auth-screen">
   <div class="auth-card">
-    <div class="auth-logo">domo<span>tekan</span></div>
+    <div class="auth-logo">
+      <svg width="38" height="38" viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin-bottom:6px">
+        <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
+        <path d="M6.5 14a4 4 0 0 1 7 0"/>
+        <path d="M8.2 15.8a2 2 0 0 1 3.6 0"/>
+        <circle cx="10" cy="17.2" r="0.55" fill="var(--green)" stroke="none"/>
+      </svg>
+      Domo<span>tekan</span>
+    </div>
     <div class="auth-sub">Panel de control · Acceso profesional</div>
     <div class="field">
       <label>Email</label>
@@ -288,7 +299,18 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 <div id="app">
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <div class="logo-text">domo<span>tekan</span></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
+          <path d="M6.5 14a4 4 0 0 1 7 0"/>
+          <path d="M8.2 15.8a2 2 0 0 1 3.6 0"/>
+          <circle cx="10" cy="17.2" r="0.55" fill="var(--green)" stroke="none"/>
+        </svg>
+        <div>
+          <div class="logo-text">Domo<span>tekan</span></div>
+          <div style="font-size:9px;color:var(--text-3);letter-spacing:0.1em;text-transform:uppercase;margin-top:1px">Smart Home</div>
+        </div>
+      </div>
       <span class="logo-role" id="sidebar-role">superadmin</span>
     </div>
     <nav>
@@ -300,6 +322,11 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
       <div class="nav-item" onclick="showPage('servers')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="6" rx="1"/><rect x="2" y="15" width="20" height="6" rx="1"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>
         Servidores
+      </div>
+      <div class="nav-item" onclick="showPage('hardware')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="15" y2="10"/></svg>
+        Hardware
+        <span id="hw-pending-badge" style="display:none;margin-left:auto;background:#EDE9FE;color:#6D28D9;font-size:10px;padding:1px 6px;border-radius:99px;font-weight:500;">0</span>
       </div>
       <div class="nav-item superadmin-only" onclick="showPage('installers')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -341,7 +368,34 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
         <div class="metric"><div class="metric-label">Offline</div><div class="metric-value red" id="m-offline">—</div><div class="metric-sub">sin conexión</div></div>
         <div class="metric superadmin-only"><div class="metric-label">Instaladores</div><div class="metric-value" id="m-installers">—</div><div class="metric-sub">activos</div></div>
       </div>
-      <div class="empty">Próximamente: Gráficos de rendimiento y estadísticas globales</div>
+      <!-- Hardware provisioning metrics row -->
+      <div class="metrics" id="hw-metrics" style="margin-bottom:16px;grid-template-columns:repeat(3,1fr);max-width:75%;">
+        <div class="metric">
+          <div class="metric-label">Hardware registrado</div>
+          <div class="metric-value" id="m-hw-total" style="font-size:22px;">—</div>
+          <div class="metric-sub">vía n8n boot</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Pendiente asignación</div>
+          <div class="metric-value" id="m-hw-pending" style="font-size:22px;color:#6D28D9;">—</div>
+          <div class="metric-sub">status: pending</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Asignados</div>
+          <div class="metric-value green" id="m-hw-assigned" style="font-size:22px;">—</div>
+          <div class="metric-sub">con VPN activa</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px;">
+        <div class="table-card" style="padding:20px;">
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:16px;">CPU y RAM — tendencia reciente</div>
+          <div style="position:relative;height:200px;"><canvas id="chart-trend"></canvas></div>
+        </div>
+        <div class="table-card" style="padding:20px;">
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:16px;">Recursos actuales por servidor</div>
+          <div style="position:relative;height:200px;"><canvas id="chart-servers"></canvas></div>
+        </div>
+      </div>
     </div>
 
     <div class="page" id="page-servers">
@@ -412,6 +466,50 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
       </div>
     </div>
 
+    <!-- HARDWARE PROVISIONING PAGE -->
+    <div class="page" id="page-hardware">
+      <div class="topbar">
+        <h1>Hardware registrado</h1>
+        <div class="topbar-actions">
+          <span style="font-size:12px;color:var(--text-3);padding:6px 10px;background:var(--bg);border-radius:var(--radius-sm);border:0.5px solid var(--border);">
+            Auto-registrado vía n8n · /webhook/hw-boot
+          </span>
+          <button class="btn" onclick="loadHardware()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Actualizar
+          </button>
+        </div>
+      </div>
+      <!-- Stats row -->
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;background:#EDE9FE;color:#6D28D9;font-size:12px;font-weight:500;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#6D28D9;display:inline-block"></span>
+          <span id="hw-stat-pending">— pendientes</span>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;background:var(--green-light);color:var(--green-dark);font-size:12px;font-weight:500;">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span>
+          <span id="hw-stat-assigned">— asignados</span>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>HW ID</th>
+              <th>Estado provisioning</th>
+              <th>Cliente</th>
+              <th>URL VPN</th>
+              <th>IP WireGuard</th>
+              <th>Último contacto</th>
+            </tr></thead>
+            <tbody id="hardware-body">
+              <tr><td colspan="6" class="loading">Cargando hardware...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div class="page" id="page-alerts">
       <div class="topbar"><h1>Alertas</h1></div>
       <div class="table-card">
@@ -448,12 +546,15 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 
 <div class="modal-overlay" id="alta-modal">
   <div class="modal" style="width: 500px;">
-    <h2>🔌 Alta de Instalación Profesional</h2>
+    <h2>🔌 Alta de Instalación</h2>
+    <div class="field">
+      <label>Código de dispositivo</label>
+      <input type="text" id="alta-hwid" placeholder="HW17223752 (del QR o etiqueta)" style="font-family:'DM Mono',monospace;letter-spacing:0.05em;" autocomplete="off" autocapitalize="characters">
+    </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="field"><label>Nombre Cliente</label><input type="text" id="alta-cliente" placeholder="Nombre completo"></div>
       <div class="field"><label>Alias Instalación</label><input type="text" id="alta-alias" placeholder="Ej: Chalet Sopelana"></div>
     </div>
-    <div class="field"><label>URL Cloudflare</label><input type="url" id="alta-url" placeholder="https://..."></div>
     <div class="field"><label>Dirección</label><input type="text" id="alta-direccion"></div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="field"><label>Código Postal</label><input type="text" id="alta-cp"></div>
@@ -465,7 +566,7 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 
     <div class="modal-actions">
       <button class="btn" onclick="closeAltaModal()">Cancelar</button>
-      <button class="btn btn-green" id="alta-btn" onclick="guardarInstalacion()">Verificar y Guardar</button>
+      <button class="btn btn-green" id="alta-btn" onclick="guardarInstalacion()">Activar instalación →</button>
     </div>
   </div>
 </div>
@@ -477,6 +578,8 @@ const SUPABASE_URL = 'https://xsidbxnrtvjgjhoscyqp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__k8db4ohZo7ldZt30dpwkA_0nyQuD3F';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+let chartTrend = null;
+let chartServers = null;
 let currentUser = null;
 let currentProfile = null;
 let inviteCountdownInterval = null;
@@ -563,9 +666,9 @@ function showPage(page) {
 
 // ALTA DE INSTALACIONES
 function openAltaModal() {
+  document.getElementById('alta-hwid').value = '';
   document.getElementById('alta-cliente').value = '';
   document.getElementById('alta-alias').value = '';
-  document.getElementById('alta-url').value = 'https://';
   document.getElementById('alta-direccion').value = '';
   document.getElementById('alta-cp').value = '';
   document.getElementById('alta-comunidad').value = '';
@@ -574,69 +677,101 @@ function openAltaModal() {
 
   const btn = document.getElementById('alta-btn');
   btn.onclick = guardarInstalacion;
-  btn.textContent = 'Verificar y Guardar';
+  btn.disabled = false;
+  btn.textContent = 'Activar instalación →';
 
   document.getElementById('alta-modal').classList.add('open');
+  setTimeout(() => document.getElementById('alta-hwid').focus(), 100);
 }
 
 function closeAltaModal() {
   document.getElementById('alta-modal').classList.remove('open');
+  // Restaurar estado del modal para próximo alta
+  const hwIdEl = document.getElementById('alta-hwid');
+  if (hwIdEl) { hwIdEl.disabled = false; hwIdEl.value = ''; }
+  const btn = document.getElementById('alta-btn');
+  btn.onclick = guardarInstalacion;
+  btn.textContent = 'Activar instalación →';
+  btn.disabled = false;
+  document.getElementById('alta-msg').textContent = '';
+  document.getElementById('alta-cliente').value = '';
+  document.getElementById('alta-alias').value = '';
+  document.getElementById('alta-direccion').value = '';
+  document.getElementById('alta-cp').value = '';
+  document.getElementById('alta-comunidad').value = '';
+  const paisEl = document.getElementById('alta-pais');
+  if (paisEl) paisEl.value = 'España';
+  editingServerId = null;
 }
 
 async function guardarInstalacion() {
-  const btn = document.getElementById('alta-btn');
+  const btn   = document.getElementById('alta-btn');
   const msgEl = document.getElementById('alta-msg');
 
-  const datos = {
-    cliente: document.getElementById('alta-cliente').value.trim(),
-    alias: document.getElementById('alta-alias').value.trim(),
-    url_cloudflare: document.getElementById('alta-url').value.trim(),
-    direccion: document.getElementById('alta-direccion').value.trim(),
-    cp: document.getElementById('alta-cp').value.trim(),
-    comunidad: document.getElementById('alta-comunidad').value.trim(),
-    pais: document.getElementById('alta-pais').value.trim(),
-    estado: 'online'
-  };
+  const hwIdRaw = document.getElementById('alta-hwid').value.trim().toUpperCase();
+  const cliente = document.getElementById('alta-cliente').value.trim();
+  const alias   = document.getElementById('alta-alias').value.trim();
+  const dir     = document.getElementById('alta-direccion').value.trim();
+  const cp      = document.getElementById('alta-cp').value.trim();
+  const com     = document.getElementById('alta-comunidad').value.trim();
+  const pais    = document.getElementById('alta-pais').value.trim() || 'España';
 
-  if (!datos.cliente || !datos.url_cloudflare || datos.url_cloudflare === 'https://') {
+  // Normalizar hw_id: HW17223752 → HW-1722-3752
+  let hw_id = hwIdRaw;
+  if (/^HW[0-9]{8}$/.test(hwIdRaw)) {
+    hw_id = hwIdRaw.slice(0,2) + '-' + hwIdRaw.slice(2,6) + '-' + hwIdRaw.slice(6);
+  }
+
+  if (!hw_id) {
     msgEl.style.color = 'var(--red)';
-    msgEl.textContent = '❌ Nombre del cliente y URL son obligatorios.';
+    msgEl.textContent = '❌ El código de dispositivo es obligatorio.';
+    return;
+  }
+  if (!cliente) {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '❌ El nombre del cliente es obligatorio.';
     return;
   }
 
-  msgEl.style.color = 'var(--amber)';
-  msgEl.textContent = '⏳ Comprobando conexión...';
   btn.disabled = true;
+  msgEl.style.color = 'var(--amber)';
+  msgEl.textContent = '⏳ Creando VPN y DNS… esto tarda unos segundos.';
 
-  let estaVivo = false;
   try {
-    await fetch(datos.url_cloudflare, { mode: 'no-cors' });
-    estaVivo = true;
+    const res = await fetch('https://n8n.domotekan.com/webhook/provisionar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hw_id,
+        client_name:  cliente,
+        alias,
+        direccion:    dir,
+        cp,
+        comunidad:    com,
+        pais,
+        assigned_by:  currentProfile?.email || ''
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || 'Error del servidor (' + res.status + ')');
+    }
+
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = '✅ Instalación activada — ' + data.client_url;
+    showToast('✅ ' + cliente + ' dado de alta');
+    setTimeout(() => {
+      closeAltaModal();
+      loadServers();
+      loadDashboard();
+    }, 1800);
+
   } catch (e) {
-    estaVivo = true;
-  }
-
-  if (!estaVivo) {
+    console.error(e);
     msgEl.style.color = 'var(--red)';
-    msgEl.textContent = '❌ Error de conexión con el túnel.';
-    btn.disabled = false;
-    return;
-  }
-
-  msgEl.style.color = 'var(--green)';
-  msgEl.textContent = '🟢 ¡Conectado! Guardando en BD...';
-
-  const { error } = await sb.from('instalaciones').insert([datos]);
-
-  if (error) {
-    console.error("Error de Supabase:", error);
-    msgEl.style.color = 'var(--red)';
-    msgEl.textContent = '❌ ERROR BD: ' + error.message;
-    btn.disabled = false;
-  } else {
-    showToast('Instalación guardada');
-    closeAltaModal();
-    loadDashboard();
+    msgEl.textContent = '❌ ' + (e.message || 'Error de conexión. Inténtalo de nuevo.');
     btn.disabled = false;
   }
 }
@@ -647,12 +782,15 @@ async function openEditModal(id) {
     const { data: s } = await sb.from('instalaciones').select('*').eq('id', id).single();
 
     if (s) {
-        document.getElementById('alta-cliente').value = s.cliente;
+        const hwIdEl = document.getElementById('alta-hwid');
+        if (hwIdEl) { hwIdEl.value = s.hw_id || ''; hwIdEl.disabled = true; }
+        document.getElementById('alta-cliente').value = s.cliente || s.client_name || '';
         document.getElementById('alta-alias').value = s.alias || '';
-        document.getElementById('alta-url').value = s.url_cloudflare;
         document.getElementById('alta-direccion').value = s.direccion || '';
         document.getElementById('alta-cp').value = s.cp || '';
         document.getElementById('alta-comunidad').value = s.comunidad || '';
+        const paisEl = document.getElementById('alta-pais');
+        if (paisEl) paisEl.value = s.pais || 'España';
 
         document.getElementById('alta-modal').classList.add('open');
 
@@ -669,10 +807,10 @@ async function actualizarInstalacion() {
     const datos = {
         cliente: document.getElementById('alta-cliente').value.trim(),
         alias: document.getElementById('alta-alias').value.trim(),
-        url_cloudflare: document.getElementById('alta-url').value.trim(),
         direccion: document.getElementById('alta-direccion').value.trim(),
         cp: document.getElementById('alta-cp').value.trim(),
-        comunidad: document.getElementById('alta-comunidad').value.trim()
+        comunidad: document.getElementById('alta-comunidad').value.trim(),
+        pais: (document.getElementById('alta-pais') || {}).value?.trim() || 'España'
     };
 
     const { error } = await sb.from('instalaciones').update(datos).eq('id', editingServerId);
@@ -695,21 +833,18 @@ async function actualizarInstalacion() {
 
 // ELIMINACIÓN DE INSTALACIONES
 async function eliminarInstalacion(id, nombre) {
-  // 1. Pedimos confirmación para evitar borrados accidentales
   const seguro = confirm(`⚠️ ATENCIÓN:\n\n¿Estás seguro de que quieres eliminar la instalación "${nombre}"?\n\nEsta acción no se puede deshacer y el servidor desaparecerá de este panel.`);
-  
-  if (!seguro) return; // Si cancela, no hacemos nada
 
-  // 2. Ejecutamos el borrado en Supabase
+  if (!seguro) return;
+
   const { error } = await sb.from('instalaciones').delete().eq('id', id);
 
-  // 3. Mostramos resultado y actualizamos la tabla
+
   if (error) {
     console.error("Error al eliminar:", error);
     showToast('❌ Error al eliminar la instalación');
   } else {
     showToast('🗑️ Instalación eliminada');
-    // Recargamos los datos para que desaparezca visualmente
     loadDashboard();
     loadServers();
   }
@@ -755,11 +890,15 @@ function filterServers() {
 
 function serverRow(s, extended=false) {
   const online = isOnline(s.ultimo_heartbeat);
-  const estado = online ? 'online' : 'offline';
-  const estadoLabel = online ? 'Online' : 'Offline';
+  const provisionado = s.status === 'assigned';
+  const estado = !provisionado ? 'warn' : (online ? 'online' : 'offline');
+  const estadoLabel = !provisionado ? 'Pendiente' : (online ? 'Online' : 'Offline');
   const cpu = s.cpu_last; const ram = s.ram_last; const disco = s.disco_last; const temp = s.temperatura_last;
 
-  let row = `<td><div class="server-name">${s.nombre}</div><div class="server-id">${s.direccion || 'Sin dirección'}</div></td>`;
+  let row = `<td>
+    <div class="server-name">${s.nombre}</div>
+    <div class="server-id">${s.hw_id ? '<span style="font-family:\'DM Mono\',monospace">' + s.hw_id + '</span>' : (s.direccion || '—')}</div>
+  </td>`;
   row += `<td style="font-size:13px;color:var(--text-2)">${s.instalador_nombre || '—'}</td>`;
   row += `<td><span class="badge ${estado}"><span class="badge-dot"></span>${estadoLabel}</span></td>`;
   row += `<td><span class="stat ${statClass(cpu)}">${statStr(cpu)}</span></td>`;
@@ -773,46 +912,127 @@ function serverRow(s, extended=false) {
     row += `<td style="font-size:12px;color:var(--text-3)">${timeAgo(s.ultimo_heartbeat)}</td>`;
   }
 
+  const connectUrl = s.client_url;
   row += `<td>
     <div style="display:flex; gap:8px;">
-      <button class="action-btn" onclick="window.open('${s.url_cloudflare}')">Conectar</button>
-      <button class="action-btn" style="color:var(--text-3); font-size:14px;" onclick="openEditModal('${s.id}')" title="Editar servidor">✏️</button>
-      <button class="action-btn danger" style="font-size:14px;" onclick="eliminarInstalacion('${s.id}', '${s.nombre}')" title="Eliminar servidor">🗑️</button>
+      ${connectUrl ? `<button class="action-btn" onclick="window.open('${connectUrl}')">Conectar</button>` : '<span style="font-size:12px;color:var(--text-3)">Sin URL</span>'}
+      <button class="action-btn" style="color:var(--text-3); font-size:14px;" onclick="openEditModal('${s.id}')" title="Editar">✏️</button>
+      <button class="action-btn danger" style="font-size:14px;" onclick="eliminarInstalacion('${s.id}', '${s.nombre}')" title="Eliminar">🗑️</button>
     </div>
   </td>`;
   return '<tr>' + row + '</tr>';
 }
 
-// LECTURA DE DATOS
+// ==========================================
+// LECTURA DE DATOS — tabla única instalaciones
+// ==========================================
 async function getServersWithStats() {
-  const { data: servers, error: errS } = await sb.from('instalaciones').select('*');
-  if (errS || !servers) return [];
+  const { data: servers } = await sb.from('instalaciones').select('*').order('assigned_at', { ascending: false, nullsFirst: false });
+  const { data: heartbeats } = await sb.from('heartbeats').select('*').order('recibido_en', { ascending: false });
 
-  const { data: heartbeats, error: errH } = await sb.from('heartbeats').select('*').order('recibido_en', { ascending: false });
-
+  // Índice heartbeats: por hw_id (nuevo) y por servidor_id (legacy)
   const latestHb = {};
   if (heartbeats) {
     heartbeats.forEach(hb => {
-      if (!latestHb[hb.servidor_id]) {
-        latestHb[hb.servidor_id] = hb;
-      }
+      if (hb.hw_id     && !latestHb[hb.hw_id])     latestHb[hb.hw_id]     = hb;
+      if (hb.servidor_id && !latestHb[hb.servidor_id]) latestHb[hb.servidor_id] = hb;
     });
   }
 
-  return servers.map(s => {
-    const hb = latestHb[s.id];
+  return (servers || []).map(s => {
+    const hb = latestHb[s.hw_id] || latestHb[s.id] || null;
     return {
-      id: s.id,
-      nombre: s.cliente,
-      direccion: s.direccion,
-      url_cloudflare: s.url_cloudflare,
-      instalador_nombre: 'Admin',
-      ultimo_heartbeat: hb ? (hb.recibido_en || hb.created_at) : null,
-      cpu_last: hb ? hb.cpu : 0,
-      ram_last: hb ? hb.ram : 0,
-      disco_last: hb ? hb.disco : 0,
+      id:               s.id,
+      hw_id:            s.hw_id || null,
+      nombre:           s.cliente || s.client_name || s.alias || s.hw_id || '—',
+      alias:            s.alias,
+      direccion:        s.direccion,
+      status:           s.status || 'assigned',        // legacy rows sin status = ya asignados
+      client_url:       s.client_url || s.url_cloudflare || null,
+      instalador_nombre: s.assigned_by || 'Admin',
+      ultimo_heartbeat: hb ? (hb.recibido_en || hb.created_at) : (s.last_seen || null),
+      cpu_last:         hb ? hb.cpu         : 0,
+      ram_last:         hb ? hb.ram         : 0,
+      disco_last:       hb ? hb.disco       : 0,
       temperatura_last: hb ? hb.temperatura : null
     };
+  });
+}
+
+// CHARTS
+async function loadCharts() {
+  const { data: hbs } = await sb.from('heartbeats')
+    .select('cpu, ram, recibido_en')
+    .order('recibido_en', { ascending: false })
+    .limit(300);
+
+  if (!hbs || !hbs.length) return;
+
+  // Group by 5-min buckets for trend chart
+  const bucketMs = 5 * 60 * 1000;
+  const map = new Map();
+  hbs.forEach(h => {
+    const t = Math.floor(new Date(h.recibido_en).getTime() / bucketMs) * bucketMs;
+    if (!map.has(t)) map.set(t, { cpu: [], ram: [] });
+    map.get(t).cpu.push(h.cpu || 0);
+    map.get(t).ram.push(h.ram || 0);
+  });
+
+  const buckets = [...map.entries()].sort((a,b) => a[0]-b[0]).slice(-18);
+  const labels = buckets.map(([t]) => {
+    const d = new Date(t);
+    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+  });
+  const avg = (arr) => Math.round(arr.reduce((s,x)=>s+x,0)/arr.length);
+  const avgCpu = buckets.map(([,v]) => avg(v.cpu));
+  const avgRam = buckets.map(([,v]) => avg(v.ram));
+
+  const chartDefaults = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { font: { size: 11, family: 'DM Sans' }, boxWidth: 10, padding: 12 } } },
+  };
+
+  if (chartTrend) chartTrend.destroy();
+  chartTrend = new Chart(document.getElementById('chart-trend').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'CPU %', data: avgCpu, borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.07)', tension: 0.4, pointRadius: 2, borderWidth: 2 },
+        { label: 'RAM %', data: avgRam, borderColor: '#185FA5', backgroundColor: 'rgba(24,95,165,0.07)', tension: 0.4, pointRadius: 2, borderWidth: 2 }
+      ]
+    },
+    options: {
+      ...chartDefaults,
+      scales: {
+        y: { min: 0, max: 100, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+        x: { ticks: { font: { size: 10 }, maxRotation: 0 }, grid: { display: false } }
+      }
+    }
+  });
+
+  // Bar chart: current resources per server
+  const servers = await getServersWithStats();
+  if (!servers.length) return;
+
+  if (chartServers) chartServers.destroy();
+  chartServers = new Chart(document.getElementById('chart-servers').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: servers.map(s => s.nombre.length > 14 ? s.nombre.slice(0,12)+'…' : s.nombre),
+      datasets: [
+        { label: 'CPU %', data: servers.map(s => Math.round(s.cpu_last||0)), backgroundColor: 'rgba(29,158,117,0.75)', borderRadius: 4 },
+        { label: 'RAM %', data: servers.map(s => Math.round(s.ram_last||0)), backgroundColor: 'rgba(24,95,165,0.7)', borderRadius: 4 },
+        { label: 'Disco %', data: servers.map(s => Math.round(s.disco_last||0)), backgroundColor: 'rgba(186,117,23,0.7)', borderRadius: 4 }
+      ]
+    },
+    options: {
+      ...chartDefaults,
+      scales: {
+        y: { min: 0, max: 100, ticks: { font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+      }
+    }
   });
 }
 
@@ -830,6 +1050,8 @@ async function loadDashboard() {
     const { count } = await sb.from('usuarios').select('*', {count:'exact',head:true}).eq('rol','instalador').eq('activo',true);
     document.getElementById('m-installers').textContent = count || 0;
   }
+
+  loadCharts();
 }
 
 // SERVERS
