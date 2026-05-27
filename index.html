@@ -768,10 +768,15 @@ async function guardarInstalacion() {
       })
     });
 
-    const data = await res.json();
+    // Leer body de forma segura — n8n puede devolver body vacío si el workflow falla
+    let data = {};
+    try {
+      const txt = await res.text();
+      if (txt && txt.trim()) data = JSON.parse(txt);
+    } catch (_) { /* body vacío o no-JSON */ }
 
     if (!res.ok || !data.ok) {
-      throw new Error(data.error || 'Error del servidor (' + res.status + ')');
+      throw new Error(data.error || data.message || 'El workflow n8n no respondió correctamente (HTTP ' + res.status + '). Comprueba que WF3 está activo en n8n.');
     }
 
     msgEl.style.color = 'var(--green)';
