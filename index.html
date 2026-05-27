@@ -1353,6 +1353,8 @@ setInterval(() => {
 // ==========================================
 
 sb.auth.onAuthStateChange(async (event, session) => {
+  console.log('[auth] event:', event, '| appInitialized:', appInitialized, '| user:', session?.user?.email || 'none');
+
   if (event === 'SIGNED_OUT') {
     appInitialized = false;
     currentUser = null;
@@ -1366,6 +1368,12 @@ sb.auth.onAuthStateChange(async (event, session) => {
 
   if (!session?.user) return;
 
+  // En SIGNED_IN (login manual) siempre reinicializamos,
+  // aunque appInitialized fuera true por una sesión previa "fantasma"
+  if (event === 'SIGNED_IN') {
+    appInitialized = false;
+  }
+
   currentUser = session.user;
 
   if (!appInitialized) {
@@ -1373,6 +1381,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
     try {
       await initApp(session.user);
     } catch (e) {
+      console.error('[auth] initApp exception:', e);
       appInitialized = false;
       await sb.auth.signOut();
     }
