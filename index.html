@@ -546,8 +546,8 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 
 <div class="modal-overlay" id="alta-modal">
   <div class="modal" style="width: 500px;">
-    <h2>🔌 Alta de Instalación</h2>
-    <div class="field">
+    <h2 id="alta-modal-title">🔌 Alta de Instalación</h2>
+    <div class="field" id="alta-hwid-wrap">
       <label>Código de dispositivo</label>
       <input type="text" id="alta-hwid" placeholder="HW17223752 (del QR o etiqueta)" style="font-family:'DM Mono',monospace;letter-spacing:0.05em;" autocomplete="off" autocapitalize="characters">
     </div>
@@ -561,6 +561,12 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
       <div class="field"><label>Comunidad</label><input type="text" id="alta-comunidad"></div>
     </div>
     <div class="field"><label>País</label><input type="text" id="alta-pais" value="España"></div>
+    <!-- URL: solo visible en modo edición -->
+    <div class="field" id="alta-url-wrap" style="display:none;">
+      <label>URL del panel del cliente</label>
+      <input type="text" id="alta-url" placeholder="https://cliente.domotekan.com" style="font-family:'DM Mono',monospace;font-size:12px;">
+      <span style="font-size:11px;color:var(--text-3);margin-top:4px;display:block;">URL que aparece en el botón "Conectar". Se genera automáticamente en altas nuevas.</span>
+    </div>
 
     <div id="alta-msg" style="font-size: 12px; margin-bottom: 10px; min-height: 18px; font-weight: 500;"></div>
 
@@ -688,8 +694,16 @@ function openAltaModal() {
 function closeAltaModal() {
   document.getElementById('alta-modal').classList.remove('open');
   // Restaurar estado del modal para próximo alta
+  document.getElementById('alta-modal-title').textContent = '🔌 Alta de Instalación';
   const hwIdEl = document.getElementById('alta-hwid');
   if (hwIdEl) { hwIdEl.disabled = false; hwIdEl.value = ''; }
+  const hwWrap = document.getElementById('alta-hwid-wrap');
+  if (hwWrap) hwWrap.style.display = 'block';
+  // Ocultar URL (solo en edición)
+  const urlWrap = document.getElementById('alta-url-wrap');
+  if (urlWrap) urlWrap.style.display = 'none';
+  const urlEl = document.getElementById('alta-url');
+  if (urlEl) urlEl.value = '';
   const btn = document.getElementById('alta-btn');
   btn.onclick = guardarInstalacion;
   btn.textContent = 'Activar instalación →';
@@ -783,8 +797,15 @@ async function openEditModal(id) {
     const { data: s } = await sb.from('instalaciones').select('*').eq('id', id).single();
 
     if (s) {
+        // Título e indicador de modo edición
+        document.getElementById('alta-modal-title').textContent = '✏️ Editar Instalación';
+
+        // HW ID: mostrar pero no editable
         const hwIdEl = document.getElementById('alta-hwid');
         if (hwIdEl) { hwIdEl.value = s.hw_id || ''; hwIdEl.disabled = true; }
+        const hwWrap = document.getElementById('alta-hwid-wrap');
+        if (hwWrap && !s.hw_id) hwWrap.style.display = 'none'; // Ocultar si no tiene hw_id (legacy)
+
         document.getElementById('alta-cliente').value = s.cliente || s.client_name || '';
         document.getElementById('alta-alias').value = s.alias || '';
         document.getElementById('alta-direccion').value = s.direccion || '';
@@ -792,6 +813,12 @@ async function openEditModal(id) {
         document.getElementById('alta-comunidad').value = s.comunidad || '';
         const paisEl = document.getElementById('alta-pais');
         if (paisEl) paisEl.value = s.pais || 'España';
+
+        // Mostrar y rellenar campo URL en modo edición
+        const urlWrap = document.getElementById('alta-url-wrap');
+        const urlEl   = document.getElementById('alta-url');
+        if (urlWrap) urlWrap.style.display = 'block';
+        if (urlEl)   urlEl.value = s.client_url || s.url_cloudflare || '';
 
         document.getElementById('alta-modal').classList.add('open');
 
@@ -805,13 +832,15 @@ async function actualizarInstalacion() {
     const btn = document.getElementById('alta-btn');
     btn.disabled = true;
 
+    const urlVal = (document.getElementById('alta-url') || {}).value?.trim() || null;
     const datos = {
         cliente: document.getElementById('alta-cliente').value.trim(),
         alias: document.getElementById('alta-alias').value.trim(),
         direccion: document.getElementById('alta-direccion').value.trim(),
         cp: document.getElementById('alta-cp').value.trim(),
         comunidad: document.getElementById('alta-comunidad').value.trim(),
-        pais: (document.getElementById('alta-pais') || {}).value?.trim() || 'España'
+        pais: (document.getElementById('alta-pais') || {}).value?.trim() || 'España',
+        ...(urlVal !== null && { client_url: urlVal })
     };
 
     const { error } = await sb.from('instalaciones').update(datos).eq('id', editingServerId);
