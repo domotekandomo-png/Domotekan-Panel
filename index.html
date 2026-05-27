@@ -907,21 +907,38 @@ async function actualizarInstalacion() {
 }
 
 // ELIMINACIÓN DE INSTALACIONES
-async function eliminarInstalacion(id, nombre) {
-  const seguro = confirm(`⚠️ ATENCIÓN:\n\n¿Estás seguro de que quieres eliminar la instalación "${nombre}"?\n\nEsta acción no se puede deshacer y el servidor desaparecerá de este panel.`);
-
+async function eliminarInstalacion(id, nombre, hwId) {
+  const seguro = confirm(`⚠️ ATENCIÓN:\n\n¿Estás seguro de que quieres eliminar "${nombre}"?\n\nSe eliminará el cliente VPN, el dominio y el registro. Esta acción no se puede deshacer.`);
   if (!seguro) return;
 
-  const { error } = await sb.from('hardware_devices').delete().eq('id', id);
-
-
-  if (error) {
-    console.error("Error al eliminar:", error);
-    showToast('❌ Error al eliminar la instalación');
+  if (hwId) {
+    // Limpieza completa vía n8n: WireGuard + NPM + Supabase
+    showToast('🔄 Eliminando instalación...');
+    try {
+      const resp = await fetch('https://n8n.domotekan.com/webhook/hw-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hw_id: hwId, admin_token: 'DOMOTEKAN_ADMIN_2026' })
+      });
+      if (!resp.ok) throw new Error('n8n respondió ' + resp.status);
+      showToast('🗑️ Instalación eliminada completamente');
+      loadDashboard();
+      loadServers();
+    } catch (e) {
+      console.error('[eliminar]', e);
+      showToast('❌ Error al eliminar. Comprueba n8n.');
+    }
   } else {
-    showToast('🗑️ Instalación eliminada');
-    loadDashboard();
-    loadServers();
+    // Sin hw_id (entrada manual sin hardware): borrar solo en Supabase
+    const { error } = await sb.from('hardware_devices').delete().eq('id', id);
+    if (error) {
+      console.error('[eliminar supabase]', error);
+      showToast('❌ Error al eliminar la instalación');
+    } else {
+      showToast('🗑️ Instalación eliminada');
+      loadDashboard();
+      loadServers();
+    }
   }
 }
 
@@ -1197,7 +1214,7 @@ async function openDetailPanel(id) {
     </div>
     <div class="detail-actions">
       <button class="action-btn" onclick="closeDetailPanel();openEditModal('${r.id}')">✏️ Editar</button>
-      <button class="action-btn danger" onclick="closeDetailPanel();eliminarInstalacion('${r.id}','${safeName}')">🗑️ Eliminar</button>
+      <button class="action-btn danger" onclick="closeDetailPanel();eliminarInstalacion('${r.id}','${safeName}','${r.hw_id || ''}')">🗑️ Eliminar</button>
     </div>`;
   }
 
