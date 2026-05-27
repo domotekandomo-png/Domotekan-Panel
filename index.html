@@ -267,6 +267,44 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 
 /* LOADING */
 .loading { text-align: center; padding: 60px; color: var(--text-3); }
+
+/* DETAIL SIDE PANEL */
+#detail-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.22); z-index: 200;
+}
+#detail-overlay.open { display: block; }
+#detail-panel {
+  position: fixed; top: 0; right: -440px;
+  width: 400px; height: 100vh;
+  background: var(--surface); z-index: 201;
+  transition: right 0.25s ease; overflow-y: auto;
+  border-left: 0.5px solid var(--border-strong);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.08);
+  padding: 24px 24px 40px;
+}
+#detail-panel.open { right: 0; }
+.detail-close {
+  position: absolute; top: 14px; right: 14px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-3); padding: 4px; line-height: 0;
+}
+.detail-close:hover { color: var(--text); }
+.detail-name { font-size: 19px; font-weight: 600; margin: 10px 0 2px; }
+.detail-hwid { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-3); margin-bottom: 14px; }
+.detail-section { margin-top: 18px; padding-top: 18px; border-top: 0.5px solid var(--border); }
+.detail-section-title {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-3); margin-bottom: 10px;
+}
+.detail-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 4px 0; }
+.detail-label { font-size: 12px; color: var(--text-3); flex-shrink: 0; padding-right: 12px; }
+.detail-value { font-size: 13px; color: var(--text); text-align: right; word-break: break-all; }
+.detail-actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+
+/* Filas de tabla clicables */
+tbody tr { cursor: pointer; transition: background 0.1s; }
+tbody tr:hover { background: var(--bg); }
 </style>
 </head>
 <body>
@@ -420,17 +458,12 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
           <table>
             <thead><tr>
               <th>Instalación</th>
-              <th>Instalador</th>
               <th>Estado</th>
-              <th>CPU</th>
-              <th>RAM</th>
-              <th>Disco</th>
-              <th>Temp.</th>
+              <th>Dirección</th>
               <th>Último contacto</th>
-              <th></th>
             </tr></thead>
             <tbody id="servers-body">
-              <tr><td colspan="9" class="loading">Cargando...</td></tr>
+              <tr><td colspan="4" class="loading">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -496,14 +529,13 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
           <table>
             <thead><tr>
               <th>HW ID</th>
-              <th>Estado provisioning</th>
+              <th>Estado</th>
               <th>Cliente</th>
-              <th>URL VPN</th>
-              <th>IP WireGuard</th>
+              <th>Dirección</th>
               <th>Último contacto</th>
             </tr></thead>
             <tbody id="hardware-body">
-              <tr><td colspan="6" class="loading">Cargando hardware...</td></tr>
+              <tr><td colspan="5" class="loading">Cargando hardware...</td></tr>
             </tbody>
           </table>
         </div>
@@ -530,6 +562,10 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
     </div>
   </main>
 </div>
+
+<!-- DETAIL SIDE PANEL -->
+<div id="detail-overlay" onclick="closeDetailPanel()"></div>
+<div id="detail-panel"><div id="detail-content"></div></div>
 
 <div class="modal-overlay" id="invite-modal">
   <div class="modal">
@@ -921,39 +957,21 @@ function filterServers() {
   });
 }
 
-function serverRow(s, extended=false) {
+function serverRow(s) {
   const online = isOnline(s.ultimo_heartbeat);
   const provisionado = s.status === 'active';
   const estado = !provisionado ? 'warn' : (online ? 'online' : 'offline');
   const estadoLabel = !provisionado ? 'Sin asignar' : (online ? 'Online' : 'Offline');
-  const cpu = s.cpu_last; const ram = s.ram_last; const disco = s.disco_last; const temp = s.temperatura_last;
 
   let row = `<td>
     <div class="server-name">${s.nombre}</div>
-    <div class="server-id">${s.hw_id ? '<span style="font-family:\'DM Mono\',monospace">' + s.hw_id + '</span>' : (s.direccion || '—')}</div>
+    ${s.hw_id ? `<div class="server-id"><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${s.hw_id}</span></div>` : ''}
   </td>`;
-  row += `<td style="font-size:13px;color:var(--text-2)">${s.instalador_nombre || '—'}</td>`;
   row += `<td><span class="badge ${estado}"><span class="badge-dot"></span>${estadoLabel}</span></td>`;
-  row += `<td><span class="stat ${statClass(cpu)}">${statStr(cpu)}</span></td>`;
-  row += `<td><span class="stat ${statClass(ram)}">${statStr(ram)}</span></td>`;
-  row += `<td><span class="stat ${statClass(disco)}">${statStr(disco)}</span></td>`;
+  row += `<td style="font-size:13px;color:var(--text-2)">${s.direccion || s.alias || '—'}</td>`;
+  row += `<td style="font-size:12px;color:var(--text-3)">${timeAgo(s.ultimo_heartbeat)}</td>`;
 
-  const tempStr = temp !== null && temp !== undefined && temp !== 0 ? Math.round(temp) + '°C' : '—';
-  row += `<td><span class="stat ${statClass(temp, 75, 85)}">${tempStr}</span></td>`;
-
-  if (extended) {
-    row += `<td style="font-size:12px;color:var(--text-3)">${timeAgo(s.ultimo_heartbeat)}</td>`;
-  }
-
-  const connectUrl = s.client_url;
-  row += `<td>
-    <div style="display:flex; gap:8px;">
-      ${connectUrl ? `<button class="action-btn" onclick="window.open('${connectUrl}')">Conectar</button>` : '<span style="font-size:12px;color:var(--text-3)">Sin URL</span>'}
-      <button class="action-btn" style="color:var(--text-3); font-size:14px;" onclick="openEditModal('${s.id}')" title="Editar">✏️</button>
-      <button class="action-btn danger" style="font-size:14px;" onclick="eliminarInstalacion('${s.id}', '${s.nombre}')" title="Eliminar">🗑️</button>
-    </div>
-  </td>`;
-  return '<tr>' + row + '</tr>';
+  return `<tr onclick="openDetailPanel('${s.id}')">${row}</tr>`;
 }
 
 // ==========================================
@@ -1107,15 +1125,79 @@ async function loadHardware() {
     const isOnlineNow = isActive && isOnline(r.last_seen);
     const badgeClass = !isActive ? 'warn' : (isOnlineNow ? 'online' : 'offline');
     const badgeLabel = !isActive ? 'Sin asignar' : (isOnlineNow ? 'Online' : 'Offline');
-    return `<tr>
+    return `<tr onclick="openDetailPanel('${r.id}')">
       <td style="font-family:'DM Mono',monospace;font-size:12px">${r.hw_id || '—'}</td>
       <td><span class="badge ${badgeClass}"><span class="badge-dot"></span>${badgeLabel}</span></td>
       <td>${r.client_name || '—'}</td>
-      <td style="font-size:12px">${r.client_url ? `<a href="${r.client_url}" target="_blank" style="color:var(--blue)">${r.client_url}</a>` : '—'}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.wg_client_ip || '—'}</td>
+      <td style="font-size:13px;color:var(--text-2)">${r.direccion || r.alias || '—'}</td>
       <td style="font-size:12px;color:var(--text-3)">${r.last_seen ? timeAgo(r.last_seen) : '—'}</td>
     </tr>`;
   }).join('');
+}
+
+// DETAIL PANEL
+async function openDetailPanel(id) {
+  const { data: r } = await sb.from('hardware_devices').select('*').eq('id', id).single();
+  if (!r) return;
+
+  const isSuperadmin = currentProfile?.rol === 'superadmin';
+  const isActive = r.status === 'active';
+  const online = isActive && isOnline(r.last_seen);
+  const badgeClass = !isActive ? 'warn' : (online ? 'online' : 'offline');
+  const badgeLabel = !isActive ? 'Sin asignar' : (online ? 'Online' : 'Offline');
+  const nombre = r.client_name || r.alias || r.hw_id || '—';
+  const safeName = nombre.replace(/'/g, "\\'");
+
+  let html = `
+    <button class="detail-close" onclick="closeDetailPanel()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div><span class="badge ${badgeClass}"><span class="badge-dot"></span>${badgeLabel}</span></div>
+    <div class="detail-name">${nombre}</div>
+    ${r.hw_id ? `<div class="detail-hwid">${r.hw_id}</div>` : ''}
+
+    <div class="detail-section">
+      <div class="detail-section-title">Instalación</div>
+      ${r.alias     ? `<div class="detail-row"><span class="detail-label">Alias</span><span class="detail-value">${r.alias}</span></div>` : ''}
+      ${r.direccion ? `<div class="detail-row"><span class="detail-label">Dirección</span><span class="detail-value">${r.direccion}</span></div>` : ''}
+      ${r.cp        ? `<div class="detail-row"><span class="detail-label">CP</span><span class="detail-value">${r.cp}</span></div>` : ''}
+      ${r.comunidad ? `<div class="detail-row"><span class="detail-label">Comunidad</span><span class="detail-value">${r.comunidad}</span></div>` : ''}
+      ${r.pais      ? `<div class="detail-row"><span class="detail-label">País</span><span class="detail-value">${r.pais}</span></div>` : ''}
+      <div class="detail-row"><span class="detail-label">Último contacto</span><span class="detail-value">${r.last_seen ? timeAgo(r.last_seen) : '—'}</span></div>
+      ${r.assigned_at ? `<div class="detail-row"><span class="detail-label">Alta el</span><span class="detail-value">${new Date(r.assigned_at).toLocaleDateString('es-ES')}</span></div>` : ''}
+    </div>`;
+
+  if (isActive && r.client_url) {
+    html += `
+    <div class="detail-actions">
+      <button class="btn btn-green" onclick="window.open('${r.client_url}','_blank')" style="gap:6px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Conectar al servidor
+      </button>
+    </div>`;
+  }
+
+  if (isSuperadmin) {
+    html += `
+    <div class="detail-section">
+      <div class="detail-section-title" style="color:var(--amber)">Solo administrador</div>
+      ${r.client_url  ? `<div class="detail-row"><span class="detail-label">URL VPN</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:11px">${r.client_url}</span></div>` : ''}
+      ${r.wg_client_ip ? `<div class="detail-row"><span class="detail-label">IP WireGuard</span><span class="detail-value" style="font-family:'DM Mono',monospace">${r.wg_client_ip}</span></div>` : ''}
+    </div>
+    <div class="detail-actions">
+      <button class="action-btn" onclick="closeDetailPanel();openEditModal('${r.id}')">✏️ Editar</button>
+      <button class="action-btn danger" onclick="closeDetailPanel();eliminarInstalacion('${r.id}','${safeName}')">🗑️ Eliminar</button>
+    </div>`;
+  }
+
+  document.getElementById('detail-content').innerHTML = html;
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function closeDetailPanel() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('detail-overlay').classList.remove('open');
 }
 
 // SERVERS
@@ -1124,7 +1206,7 @@ async function loadServers() {
   tbody.innerHTML = '<tr><td colspan="9" class="loading">Cargando...</td></tr>';
   const servers = await getServersWithStats();
   if (!servers.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">No hay servidores registrados</td></tr>'; return; }
-  tbody.innerHTML = servers.map(s => serverRow(s, true)).join('');
+  tbody.innerHTML = servers.map(s => serverRow(s)).join('');
 }
 
 // INSTALLERS
