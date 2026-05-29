@@ -254,6 +254,42 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 /* EMPTY */
 .empty { text-align: center; padding: 40px 20px; color: var(--text-3); font-size: 13px; }
 
+/* DIAGNOSIS */
+.btn-diag {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface); color: var(--text);
+  transition: background 0.15s, border-color 0.15s;
+  width: 100%;
+  justify-content: center;
+  margin-top: 6px;
+}
+.btn-diag:hover:not(:disabled) { background: var(--bg); border-color: var(--green); color: var(--green-dark); }
+.btn-diag:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-diag svg { width: 14px; height: 14px; flex-shrink: 0; }
+.diag-spinner {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--green);
+  animation: spin 0.7s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.diag-result {
+  margin-top: 12px; padding: 14px 16px;
+  background: var(--bg); border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm); font-size: 13px;
+  line-height: 1.6; color: var(--text); white-space: pre-wrap;
+  display: none;
+}
+.diag-result strong { font-weight: 600; color: var(--text); }
+.diag-result.err { background: var(--red-light); border-color: var(--red); color: var(--red); }
+.diag-meta {
+  margin-top: 8px; font-size: 11px; color: var(--text-3);
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+
 /* TOAST */
 .toast {
   position: fixed; bottom: 24px; right: 24px;
@@ -603,6 +639,12 @@ tbody tr:hover { background: var(--bg); }
       <input type="text" id="alta-url" placeholder="https://cliente.domotekan.com" style="font-family:'DM Mono',monospace;font-size:12px;">
       <span style="font-size:11px;color:var(--text-3);margin-top:4px;display:block;">URL que aparece en el botón "Conectar". Se genera automáticamente en altas nuevas.</span>
     </div>
+    <!-- HA Token: solo en modo edición, para diagnóstico IA -->
+    <div class="field" id="alta-hatoken-wrap" style="display:none;">
+      <label>Token de Home Assistant (IA Diagnóstico)</label>
+      <input type="password" id="alta-hatoken" placeholder="eyJ…token largo de HA…" autocomplete="off" style="font-family:'DM Mono',monospace;font-size:12px;">
+      <span style="font-size:11px;color:var(--text-3);margin-top:4px;display:block;">Long-Lived Access Token de HA → Perfil → Seguridad → Crear token. Se almacena cifrado y nunca llega al navegador.</span>
+    </div>
 
     <div id="alta-msg" style="font-size: 12px; margin-bottom: 10px; min-height: 18px; font-weight: 500;"></div>
 
@@ -741,11 +783,15 @@ function closeAltaModal() {
   if (hwIdEl) { hwIdEl.disabled = false; hwIdEl.value = ''; }
   const hwWrap = document.getElementById('alta-hwid-wrap');
   if (hwWrap) hwWrap.style.display = 'block';
-  // Ocultar URL (solo en edición)
+  // Ocultar URL y HA Token (solo en edición)
   const urlWrap = document.getElementById('alta-url-wrap');
   if (urlWrap) urlWrap.style.display = 'none';
   const urlEl = document.getElementById('alta-url');
   if (urlEl) urlEl.value = '';
+  const hatokenWrap = document.getElementById('alta-hatoken-wrap');
+  if (hatokenWrap) hatokenWrap.style.display = 'none';
+  const hatokenEl = document.getElementById('alta-hatoken');
+  if (hatokenEl) { hatokenEl.value = ''; hatokenEl.placeholder = 'eyJ…'; }
   const btn = document.getElementById('alta-btn');
   btn.onclick = guardarInstalacion;
   btn.textContent = 'Activar instalación →';
@@ -865,6 +911,15 @@ async function openEditModal(id) {
         if (urlWrap) urlWrap.style.display = 'block';
         if (urlEl)   urlEl.value = s.client_url || '';
 
+        // Mostrar campo HA Token (vacío — no mostrar el token existente por seguridad)
+        const hatokenWrap = document.getElementById('alta-hatoken-wrap');
+        const hatokenEl   = document.getElementById('alta-hatoken');
+        if (hatokenWrap) hatokenWrap.style.display = 'block';
+        if (hatokenEl) {
+          hatokenEl.value = '';
+          hatokenEl.placeholder = s.ha_token ? '●●●● (token ya configurado — pega uno nuevo para reemplazar)' : 'eyJ…token largo de HA…';
+        }
+
         document.getElementById('alta-modal').classList.add('open');
 
         const btn = document.getElementById('alta-btn');
@@ -877,7 +932,8 @@ async function actualizarInstalacion() {
     const btn = document.getElementById('alta-btn');
     btn.disabled = true;
 
-    const urlVal = (document.getElementById('alta-url') || {}).value?.trim() || null;
+    const urlVal     = (document.getElementById('alta-url') || {}).value?.trim() || null;
+    const hatokenVal = (document.getElementById('alta-hatoken') || {}).value?.trim() || null;
     const datos = {
         client_name: document.getElementById('alta-cliente').value.trim(),
         alias: document.getElementById('alta-alias').value.trim(),
@@ -885,7 +941,8 @@ async function actualizarInstalacion() {
         cp: document.getElementById('alta-cp').value.trim(),
         comunidad: document.getElementById('alta-comunidad').value.trim(),
         pais: (document.getElementById('alta-pais') || {}).value?.trim() || 'España',
-        ...(urlVal !== null && { client_url: urlVal })
+        ...(urlVal     !== null && { client_url: urlVal }),
+        ...(hatokenVal              && { ha_token: hatokenVal })
     };
 
     const { error } = await sb.from('hardware_devices').update(datos).eq('id', editingServerId);
@@ -1205,6 +1262,20 @@ async function openDetailPanel(id) {
     </div>`;
   }
 
+  if (isActive) {
+    html += `
+    <div class="detail-section">
+      <div class="detail-section-title">Diagnóstico IA</div>
+      <button class="btn-diag" id="diag-btn-${r.id}" onclick="runDiagnosis('${r.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
+        </svg>
+        Diagnosticar con IA
+      </button>
+      <div class="diag-result" id="diag-result-${r.id}"></div>
+    </div>`;
+  }
+
   if (isSuperadmin) {
     html += `
     <div class="detail-section">
@@ -1395,17 +1466,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
     return;
   }
 
-  if (!session?.user) return;
-
-  // En SIGNED_IN (login manual) siempre reinicializamos,
-  // aunque appInitialized fuera true por una sesión previa "fantasma"
-  if (event === 'SIGNED_IN') {
-    appInitialized = false;
-  }
-
-  currentUser = session.user;
-
-  if (!appInitialized) {
+  if (session?.user && !appInitialized) {
     appInitialized = true;
     try {
       await initApp(session.user);
@@ -1416,6 +1477,64 @@ sb.auth.onAuthStateChange(async (event, session) => {
     }
   }
 });
+
+// ── IA DIAGNOSIS ───────────────────────────────────────────────────────────
+async function runDiagnosis(serverId) {
+  const btn      = document.getElementById(`diag-btn-${serverId}`);
+  const resultEl = document.getElementById(`diag-result-${serverId}`);
+  if (!btn || !resultEl) return;
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="diag-spinner"></span> Analizando instalación…`;
+  resultEl.style.display = 'none';
+  resultEl.classList.remove('err');
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) throw new Error('Sesión no válida. Refresca la página.');
+
+    const res = await fetch('/api/diagnose', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ server_id: serverId, auth_token: session.access_token })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+
+    // Formato Markdown mínimo: **Texto:** → <strong>Texto:</strong>
+    const formatted = data.diagnosis
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+
+    const meta = [
+      data.ha_reachable === false ? '⚠️ HA no accesible' : '✓ HA accesible',
+      data.unavailable_count != null ? `${data.unavailable_count} entidades caídas` : '',
+      data.error_count != null      ? `${data.error_count} errores sistema` : ''
+    ].filter(Boolean).join(' · ');
+
+    resultEl.innerHTML = formatted + (meta ? `<div class="diag-meta">${meta}</div>` : '');
+    resultEl.style.display = 'block';
+
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
+        <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
+      </svg>
+      Repetir diagnóstico`;
+
+  } catch (e) {
+    resultEl.classList.add('err');
+    resultEl.textContent = e.message || 'Error inesperado';
+    resultEl.style.display = 'block';
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
+        <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
+      </svg>
+      Diagnosticar con IA`;
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 
