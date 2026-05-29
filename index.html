@@ -1452,29 +1452,30 @@ setInterval(() => {
 // GESTOR DE SESIÓN — PUNTO DE ENTRADA ÚNICO
 // ==========================================
 
+async function checkSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    await initApp(session.user);
+  } else {
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
+}
+
 sb.auth.onAuthStateChange(async (event, session) => {
-  console.log('[auth] event:', event, '| appInitialized:', appInitialized, '| user:', session?.user?.email || 'none');
+  console.log('[auth] event:', event, '| user:', session?.user?.email || 'none');
+
+  if (event === 'SIGNED_IN' && session?.user) {
+    await initApp(session.user);
+  }
 
   if (event === 'SIGNED_OUT') {
-    appInitialized = false;
     currentUser = null;
     currentProfile = null;
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-screen').style.display = 'flex';
     const btn = document.querySelector('.btn-primary');
     if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
-    return;
-  }
-
-  if (session?.user && !appInitialized) {
-    appInitialized = true;
-    try {
-      await initApp(session.user);
-    } catch (e) {
-      console.error('[auth] initApp exception:', e);
-      appInitialized = false;
-      await sb.auth.signOut();
-    }
   }
 });
 
@@ -1538,21 +1539,7 @@ async function runDiagnosis(serverId) {
 
 document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 
-// RESTAURAR SESIÓN AL REFRESCAR
-// onAuthStateChange puede llegar tarde en algunos navegadores.
-// Con getSession() forzamos la comprobación inmediatamente al cargar.
-(async () => {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user && !appInitialized) {
-    appInitialized = true;
-    try {
-      await initApp(session.user);
-    } catch (e) {
-      appInitialized = false;
-      await sb.auth.signOut();
-    }
-  }
-})();
+checkSession();
 </script>
 </body>
 </html>
