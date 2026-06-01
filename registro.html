@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Domotekan — Activa tu acceso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #1D9E75;
+  --green-light: #E1F5EE;
+  --green-dark: #0F6E56;
+  --red: #D85A30;
+  --red-light: #FAECE7;
+  --bg: #F7F6F3;
+  --surface: #FFFFFF;
+  --border: rgba(0,0,0,0.08);
+  --border-strong: rgba(0,0,0,0.14);
+  --text: #1A1A18;
+  --text-2: #6B6B67;
+  --text-3: #9E9E99;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+
+.card {
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.logo { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.logo span { color: var(--green); }
+.subtitle { font-size: 13px; color: var(--text-2); margin-bottom: 28px; line-height: 1.5; }
+
+/* Device info chip */
+.device-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--green-light); color: var(--green-dark);
+  border-radius: 99px; padding: 4px 12px;
+  font-size: 11px; font-weight: 500;
+  font-family: 'DM Mono', monospace; letter-spacing: 0.05em;
+  margin-bottom: 24px;
+}
+.device-chip svg { width: 12px; height: 12px; }
+
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.field input {
+  width: 100%; padding: 10px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; color: var(--text);
+  background: var(--bg); outline: none; transition: border-color 0.15s;
+}
+.field input:focus { border-color: var(--green); background: #fff; }
+.field input.err { border-color: var(--red); }
+
+/* Password strength */
+.pw-strength { margin-top: 6px; display: flex; gap: 4px; }
+.pw-bar { flex: 1; height: 3px; border-radius: 2px; background: var(--border-strong); transition: background 0.2s; }
+.pw-bar.weak   { background: var(--red); }
+.pw-bar.medium { background: #BA7517; }
+.pw-bar.strong { background: var(--green); }
+
+/* Privacidad */
+.privacy-box {
+  background: var(--bg); border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  font-size: 12px; color: var(--text-2); line-height: 1.6;
+  margin-bottom: 16px;
+}
+.privacy-box a { color: var(--green-dark); text-decoration: none; }
+.privacy-box a:hover { text-decoration: underline; }
+
+.check-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 20px; }
+.check-row input[type="checkbox"] { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--green); flex-shrink: 0; cursor: pointer; }
+.check-label { font-size: 12px; color: var(--text-2); line-height: 1.5; cursor: pointer; }
+
+.btn-primary {
+  width: 100%; padding: 11px;
+  background: var(--green); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: background 0.15s;
+}
+.btn-primary:hover:not(:disabled) { background: var(--green-dark); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.msg { font-size: 12px; margin-top: 12px; text-align: center; min-height: 18px; line-height: 1.5; }
+.msg.err { color: var(--red); }
+.msg.ok  { color: var(--green-dark); }
+
+/* Éxito */
+.success-screen { text-align: center; }
+.success-icon {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--green-light); color: var(--green);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+}
+.success-icon svg { width: 28px; height: 28px; }
+.success-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.success-sub { font-size: 13px; color: var(--text-2); margin-bottom: 24px; line-height: 1.5; }
+.btn-goto {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 11px 24px; background: var(--green); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  cursor: pointer; text-decoration: none; transition: background 0.15s;
+}
+.btn-goto:hover { background: var(--green-dark); }
+
+/* Error de QR */
+.error-screen { text-align: center; }
+.error-icon { font-size: 32px; margin-bottom: 12px; }
+.error-title { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+.error-sub { font-size: 13px; color: var(--text-2); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <!-- Estado inicial: cargando -->
+  <div id="view-loading" style="text-align:center;padding:20px 0;color:var(--text-3)">Verificando dispositivo…</div>
+  <div id="view-form"    style="display:none"></div>
+  <div id="view-success" style="display:none"></div>
+  <div id="view-error"   style="display:none"></div>
+</div>
+
+<script>
+const params  = new URLSearchParams(location.search);
+const HW_RAW  = params.get('hw') || '';
+// Normalizar HW17223752 → HW-1722-3752
+const HW_ID   = /^HW[0-9]{8}$/.test(HW_RAW.toUpperCase())
+  ? HW_RAW.toUpperCase().slice(0,2)+'-'+HW_RAW.slice(2,6)+'-'+HW_RAW.slice(6)
+  : HW_RAW.toUpperCase();
+
+// ── VISTAS ────────────────────────────────────────────────────────────────────
+
+function showView(name) {
+  ['loading','form','success','error'].forEach(v => {
+    document.getElementById('view-'+v).style.display = v === name ? '' : 'none';
+  });
+}
+
+function renderForm(clientName) {
+  document.getElementById('view-form').innerHTML = `
+    <svg width="38" height="38" viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round" style="display:block;margin-bottom:6px">
+      <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
+      <path d="M6.5 14a4 4 0 0 1 7 0"/><path d="M8.2 15.8a2 2 0 0 1 3.6 0"/>
+      <circle cx="10" cy="17.2" r="0.55" fill="var(--green)" stroke="none"/>
+    </svg>
+    <div class="logo">Domo<span>tekan</span></div>
+    <div class="subtitle">Crea tu acceso personal para controlar tu vivienda.<br>Solo tú tendrás estas credenciales.</div>
+
+    <div class="device-chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="5" y="2" width="14" height="20" rx="2"/>
+        <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+      ${HW_ID}${clientName ? ' · ' + clientName : ''}
+    </div>
+
+    <div class="field">
+      <label>Tu email</label>
+      <input type="email" id="f-email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="f-pass" placeholder="Mínimo 8 caracteres" autocomplete="new-password"
+             oninput="updateStrength(this.value)">
+      <div class="pw-strength">
+        <div class="pw-bar" id="pw1"></div>
+        <div class="pw-bar" id="pw2"></div>
+        <div class="pw-bar" id="pw3"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Repite la contraseña</label>
+      <input type="password" id="f-pass2" placeholder="••••••••" autocomplete="new-password">
+    </div>
+
+    <div class="privacy-box">
+      Domotekan solo almacena tu email para identificarte en esta instalación. Tu contraseña se guarda cifrada y nunca es accesible para el instalador ni para Domotekan. Puedes ejercer tus derechos LOPD contactando a <a href="mailto:info@domotekan.com">info@domotekan.com</a>.
+    </div>
+
+    <div class="check-row">
+      <input type="checkbox" id="f-consent">
+      <label class="check-label" for="f-consent">
+        He leído la información anterior y acepto que Domotekan almacene mi email para gestionar el acceso a mi instalación domótica.
+      </label>
+    </div>
+
+    <button class="btn-primary" id="reg-btn" onclick="register()">Activar mi acceso</button>
+    <div class="msg" id="reg-msg"></div>
+  `;
+  showView('form');
+  document.getElementById('f-pass2').addEventListener('keydown', e => { if (e.key === 'Enter') register(); });
+}
+
+function renderSuccess(clientName) {
+  document.getElementById('view-success').innerHTML = `
+    <div class="success-screen">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <div class="success-title">¡Todo listo${clientName ? ', '+clientName.split(' ')[0] : ''}!</div>
+      <div class="success-sub">Tu acceso está activado. Ya puedes controlar tu vivienda desde cualquier dispositivo.</div>
+      <a class="btn-goto" href="/cliente.html">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
+        </svg>
+        Entrar en mi hogar
+      </a>
+    </div>`;
+  showView('success');
+}
+
+function renderError(msg) {
+  document.getElementById('view-error').innerHTML = `
+    <div class="error-screen">
+      <div class="error-icon">⚠️</div>
+      <div class="error-title">No se pudo verificar el dispositivo</div>
+      <div class="error-sub">${msg}</div>
+    </div>`;
+  showView('error');
+}
+
+// ── VERIFICAR DISPOSITIVO AL CARGAR ───────────────────────────────────────────
+
+async function verifyDevice() {
+  if (!HW_ID) {
+    renderError('Código de dispositivo no encontrado en la URL. Escanea de nuevo el QR del dispositivo.');
+    return;
+  }
+
+  // Llamada de solo lectura: verificar que el hw_id existe y está activo
+  const res = await fetch('/api/registro', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ hw_id: HW_ID, _check_only: true })
+  }).catch(() => null);
+
+  // Si el endpoint no soporta _check_only, simplemente mostramos el formulario.
+  // La validación real ocurre al registrar.
+  if (!res || res.status === 404) {
+    renderError('Código de dispositivo no encontrado. Comprueba el QR o contacta con tu instalador.');
+    return;
+  }
+  if (res.status === 409) {
+    // Ya registrado — redirigir al login
+    renderError('Este dispositivo ya tiene un propietario registrado. <br><br><a href="/cliente.html" style="color:var(--green-dark)">Ir al acceso habitual →</a>');
+    return;
+  }
+
+  // Dispositivo OK (o no soporta check_only) → mostrar formulario
+  const data = await res.json().catch(() => ({}));
+  renderForm(data.client_name || '');
+}
+
+// ── REGISTRO ──────────────────────────────────────────────────────────────────
+
+async function register() {
+  const email  = document.getElementById('f-email')?.value.trim();
+  const pass   = document.getElementById('f-pass')?.value;
+  const pass2  = document.getElementById('f-pass2')?.value;
+  const accept = document.getElementById('f-consent')?.checked;
+  const msgEl  = document.getElementById('reg-msg');
+  const btn    = document.getElementById('reg-btn');
+
+  msgEl.className = 'msg';
+  msgEl.textContent = '';
+
+  if (!email)          { msgEl.className='msg err'; msgEl.textContent='Introduce tu email.'; return; }
+  if (!isValidEmail(email)) { msgEl.className='msg err'; msgEl.textContent='El email no tiene un formato válido.'; return; }
+  if (!pass || pass.length < 8) { msgEl.className='msg err'; msgEl.textContent='La contraseña debe tener al menos 8 caracteres.'; return; }
+  if (pass !== pass2)  { msgEl.className='msg err'; msgEl.textContent='Las contraseñas no coinciden.'; return; }
+  if (!accept)         { msgEl.className='msg err'; msgEl.textContent='Debes aceptar el uso de tus datos para continuar.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Creando tu acceso…';
+
+  const res = await fetch('/api/registro', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ hw_id: HW_ID, email, password: pass })
+  }).catch(() => null);
+
+  if (!res) {
+    msgEl.className = 'msg err';
+    msgEl.textContent = 'Error de conexión. Comprueba tu red e inténtalo de nuevo.';
+    btn.disabled = false; btn.textContent = 'Activar mi acceso';
+    return;
+  }
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    msgEl.className = 'msg err';
+    msgEl.textContent = data.error || 'Error al crear la cuenta. Inténtalo de nuevo.';
+    btn.disabled = false; btn.textContent = 'Activar mi acceso';
+    return;
+  }
+
+  renderSuccess(data.client_name || '');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+
+function updateStrength(pw) {
+  const bars  = [document.getElementById('pw1'), document.getElementById('pw2'), document.getElementById('pw3')];
+  const score = pw.length >= 12 && /[^a-zA-Z0-9]/.test(pw) ? 3
+              : pw.length >= 10 ? 2
+              : pw.length >=  8 ? 1 : 0;
+  const cls   = ['', 'weak', 'medium', 'strong'];
+  bars.forEach((b, i) => { b.className = 'pw-bar' + (i < score ? ' ' + cls[score] : ''); });
+}
+
+function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+verifyDevice();
+</script>
+</body>
+</html>
