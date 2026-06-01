@@ -35,7 +35,11 @@ module.exports = async function handler(req, res) {
     ).catch(() => null)
   ]);
 
-  if (!devRes?.ok) return res.status(500).json({ error: 'Error al verificar el dispositivo.' });
+  if (!devRes?.ok) {
+    const errBody = await devRes?.text().catch(() => '(sin respuesta)');
+    console.error('[registro] devRes error', devRes?.status, errBody);
+    return res.status(500).json({ error: 'Error al verificar el dispositivo. [' + (devRes?.status ?? 'null') + '] ' + errBody.slice(0, 200) });
+  }
 
   const [device] = await devRes.json();
 
