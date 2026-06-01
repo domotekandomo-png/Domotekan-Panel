@@ -106,11 +106,15 @@ module.exports = async function handler(req, res) {
 
   if (!createRes.ok) {
     const msg = createData?.msg || createData?.message || '';
-    if (msg.includes('already been registered') || createData?.code === 'email_exists') {
-      // El email ya existe en Supabase Auth (quizás de otra instalación)
-      // Simplemente añadirlo a instalacion_usuarios sin re-crear la cuenta
+    const emailExists = createData?.error_code === 'email_exists'
+                     || createData?.code === 'email_exists'
+                     || msg.includes('already been registered')
+                     || msg.includes('already registered');
+    console.error('[registro] createRes error', createRes.status, JSON.stringify(createData));
+    if (emailExists) {
+      // El email ya existe en Supabase Auth — simplemente vincular a esta instalación
     } else {
-      return res.status(400).json({ error: msg || 'No se pudo crear la cuenta.' });
+      return res.status(400).json({ error: '[' + createRes.status + '] ' + (msg || JSON.stringify(createData) || 'No se pudo crear la cuenta.') });
     }
   }
 
