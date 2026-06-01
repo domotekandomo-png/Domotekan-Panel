@@ -870,6 +870,16 @@ async function guardarInstalacion() {
     msgEl.style.color = 'var(--green)';
     msgEl.textContent = '✅ Instalación activada — ' + data.client_url;
     showToast('✅ ' + cliente + ' dado de alta');
+
+    // Capturar WAN IP del instalador (que está en casa del cliente) para restringir el registro
+    try {
+      const ipRes = await fetch('/api/my-ip').catch(() => null);
+      const { ip: wanIp } = await ipRes?.json().catch(() => ({})) || {};
+      if (wanIp && wanIp !== 'unknown') {
+        await sb.from('hardware_devices').update({ wan_ip: wanIp }).eq('hw_id', hw_id);
+      }
+    } catch (_) {}
+
     setTimeout(() => {
       closeAltaModal();
       loadServers();

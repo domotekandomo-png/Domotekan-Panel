@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Domotekan — Activa tu acceso</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -137,6 +138,11 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 </div>
 
 <script>
+const sb = supabase.createClient(
+  'https://xsidbxnrtvjgjhoscyqp.supabase.co',
+  'sb_publishable__k8db4ohZo7ldZt30dpwkA_0nyQuD3F'
+);
+
 const params  = new URLSearchParams(location.search);
 const HW_RAW  = params.get('hw') || '';
 // Normalizar HW17223752 → HW-1722-3752
@@ -208,7 +214,7 @@ function renderForm(clientName) {
   document.getElementById('f-pass2').addEventListener('keydown', e => { if (e.key === 'Enter') register(); });
 }
 
-function renderSuccess(clientName) {
+function renderSuccess(clientName, autoRedirecting = false) {
   document.getElementById('view-success').innerHTML = `
     <div class="success-screen">
       <div class="success-icon">
@@ -218,12 +224,15 @@ function renderSuccess(clientName) {
       </div>
       <div class="success-title">¡Todo listo${clientName ? ', '+clientName.split(' ')[0] : ''}!</div>
       <div class="success-sub">Tu acceso está activado. Ya puedes controlar tu vivienda desde cualquier dispositivo.</div>
-      <a class="btn-goto" href="/cliente.html">
-        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-          <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
-        </svg>
-        Entrar en mi hogar
-      </a>
+      ${autoRedirecting
+        ? `<div class="msg ok" id="redirect-msg">Entrando en tu hogar…</div>`
+        : `<a class="btn-goto" href="/cliente.html">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
+            </svg>
+            Entrar en mi hogar
+          </a>`
+      }
     </div>`;
   showView('success');
 }
@@ -314,7 +323,15 @@ async function register() {
     return;
   }
 
-  renderSuccess(data.client_name || '');
+  // Auto-login con las credenciales recién creadas
+  localStorage.setItem('dk_hw_id', HW_ID);
+  const { data: authData } = await sb.auth.signInWithPassword({ email, password: pass }).catch(() => ({}));
+  const loggedIn = !!authData?.session;
+
+  renderSuccess(data.client_name || '', loggedIn);
+  if (loggedIn) {
+    setTimeout(() => { window.location.href = '/cliente.html'; }, 2000);
+  }
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
