@@ -26,7 +26,6 @@
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { min-height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
-
 body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
 
 .card {
@@ -42,17 +41,6 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 .logo span { color: var(--green); }
 .subtitle { font-size: 13px; color: var(--text-2); margin-bottom: 28px; line-height: 1.5; }
 
-/* Device info chip */
-.device-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: var(--green-light); color: var(--green-dark);
-  border-radius: 99px; padding: 4px 12px;
-  font-size: 11px; font-weight: 500;
-  font-family: 'DM Mono', monospace; letter-spacing: 0.05em;
-  margin-bottom: 24px;
-}
-.device-chip svg { width: 12px; height: 12px; }
-
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
 .field input {
@@ -64,6 +52,13 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 }
 .field input:focus { border-color: var(--green); background: #fff; }
 .field input.err { border-color: var(--red); }
+
+/* Campo código con estilo especial */
+.field input.code-input {
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
 
 /* Password strength */
 .pw-strength { margin-top: 6px; display: flex; gap: 4px; }
@@ -96,6 +91,8 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 .btn-primary:hover:not(:disabled) { background: var(--green-dark); }
 .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
 
+.divider { border: none; border-top: 0.5px solid var(--border); margin: 20px 0; }
+
 .msg { font-size: 12px; margin-top: 12px; text-align: center; min-height: 18px; line-height: 1.5; }
 .msg.err { color: var(--red); }
 .msg.ok  { color: var(--green-dark); }
@@ -120,46 +117,15 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 }
 .btn-goto:hover { background: var(--green-dark); }
 
-/* Error de QR */
-.error-screen { text-align: center; }
-.error-icon { font-size: 32px; margin-bottom: 12px; }
-.error-title { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
-.error-sub { font-size: 13px; color: var(--text-2); line-height: 1.5; }
+.link-login { text-align: center; margin-top: 16px; font-size: 12px; color: var(--text-3); }
+.link-login a { color: var(--green-dark); text-decoration: none; }
+.link-login a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 
-<div class="card" id="card">
-  <!-- Estado inicial: cargando -->
-  <div id="view-loading" style="text-align:center;padding:20px 0;color:var(--text-3)">Verificando dispositivo…</div>
-  <div id="view-form"    style="display:none"></div>
-  <div id="view-success" style="display:none"></div>
-  <div id="view-error"   style="display:none"></div>
-</div>
-
-<script>
-const sb = supabase.createClient(
-  'https://xsidbxnrtvjgjhoscyqp.supabase.co',
-  'sb_publishable__k8db4ohZo7ldZt30dpwkA_0nyQuD3F'
-);
-
-const params  = new URLSearchParams(location.search);
-const HW_RAW  = params.get('hw') || '';
-// Normalizar HW17223752 → HW-1722-3752
-const HW_ID   = /^HW[0-9]{8}$/.test(HW_RAW.toUpperCase())
-  ? HW_RAW.toUpperCase().slice(0,2)+'-'+HW_RAW.slice(2,6)+'-'+HW_RAW.slice(6)
-  : HW_RAW.toUpperCase();
-
-// ── VISTAS ────────────────────────────────────────────────────────────────────
-
-function showView(name) {
-  ['loading','form','success','error'].forEach(v => {
-    document.getElementById('view-'+v).style.display = v === name ? '' : 'none';
-  });
-}
-
-function renderForm(clientName) {
-  document.getElementById('view-form').innerHTML = `
+<div class="card">
+  <div id="view-form">
     <svg width="38" height="38" viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="1.6"
          stroke-linecap="round" stroke-linejoin="round" style="display:block;margin-bottom:6px">
       <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
@@ -169,13 +135,13 @@ function renderForm(clientName) {
     <div class="logo">Domo<span>tekan</span></div>
     <div class="subtitle">Crea tu acceso personal para controlar tu vivienda.<br>Solo tú tendrás estas credenciales.</div>
 
-    <div class="device-chip">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="5" y="2" width="14" height="20" rx="2"/>
-        <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>
-      </svg>
-      ${HW_ID}${clientName ? ' · ' + clientName : ''}
+    <div class="field">
+      <label>Código de instalación</label>
+      <input type="text" id="f-hwid" class="code-input" placeholder="Ej: 0526-0001"
+             autocomplete="off" autocorrect="off" spellcheck="false">
     </div>
+
+    <hr class="divider">
 
     <div class="field">
       <label>Tu email</label>
@@ -209,79 +175,39 @@ function renderForm(clientName) {
 
     <button class="btn-primary" id="reg-btn" onclick="register()">Activar mi acceso</button>
     <div class="msg" id="reg-msg"></div>
-  `;
-  showView('form');
-  document.getElementById('f-pass2').addEventListener('keydown', e => { if (e.key === 'Enter') register(); });
+
+    <div class="link-login">¿Ya tienes cuenta? <a href="/cliente.html">Accede aquí</a></div>
+  </div>
+
+  <div id="view-success" style="display:none"></div>
+</div>
+
+<script>
+const sb = supabase.createClient(
+  'https://xsidbxnrtvjgjhoscyqp.supabase.co',
+  'sb_publishable__k8db4ohZo7ldZt30dpwkA_0nyQuD3F'
+);
+
+// Pre-rellenar código desde el QR (?hw=0526-0001) si viene en la URL
+const hwParam = new URLSearchParams(location.search).get('hw') || '';
+if (hwParam) {
+  document.getElementById('f-hwid').value = normalizeHwId(hwParam);
 }
 
-function renderSuccess(clientName, autoRedirecting = false) {
-  document.getElementById('view-success').innerHTML = `
-    <div class="success-screen">
-      <div class="success-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      </div>
-      <div class="success-title">¡Todo listo${clientName ? ', '+clientName.split(' ')[0] : ''}!</div>
-      <div class="success-sub">Tu acceso está activado. Ya puedes controlar tu vivienda desde cualquier dispositivo.</div>
-      ${autoRedirecting
-        ? `<div class="msg ok" id="redirect-msg">Entrando en tu hogar…</div>`
-        : `<a class="btn-goto" href="/cliente.html">
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
-            </svg>
-            Entrar en mi hogar
-          </a>`
-      }
-    </div>`;
-  showView('success');
+function normalizeHwId(raw) {
+  const u = raw.trim().toUpperCase();
+  // HW17223752 → HW-1722-3752 (formato legacy)
+  if (/^HW[0-9]{8}$/.test(u)) return u.slice(0,2)+'-'+u.slice(2,6)+'-'+u.slice(6);
+  return u;
 }
 
-function renderError(msg) {
-  document.getElementById('view-error').innerHTML = `
-    <div class="error-screen">
-      <div class="error-icon">⚠️</div>
-      <div class="error-title">No se pudo verificar el dispositivo</div>
-      <div class="error-sub">${msg}</div>
-    </div>`;
-  showView('error');
-}
-
-// ── VERIFICAR DISPOSITIVO AL CARGAR ───────────────────────────────────────────
-
-async function verifyDevice() {
-  if (!HW_ID) {
-    renderError('Código de dispositivo no encontrado en la URL. Escanea de nuevo el QR del dispositivo.');
-    return;
-  }
-
-  // Llamada de solo lectura: verificar que el hw_id existe y está activo
-  const res = await fetch('/api/registro', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ hw_id: HW_ID, _check_only: true })
-  }).catch(() => null);
-
-  // Si el endpoint no soporta _check_only, simplemente mostramos el formulario.
-  // La validación real ocurre al registrar.
-  if (!res || res.status === 404) {
-    renderError('Código de dispositivo no encontrado. Comprueba el QR o contacta con tu instalador.');
-    return;
-  }
-  if (res.status === 409) {
-    // Ya registrado — redirigir al login
-    renderError('Este dispositivo ya tiene un propietario registrado. <br><br><a href="/cliente.html" style="color:var(--green-dark)">Ir al acceso habitual →</a>');
-    return;
-  }
-
-  // Dispositivo OK (o no soporta check_only) → mostrar formulario
-  const data = await res.json().catch(() => ({}));
-  renderForm(data.client_name || '');
-}
-
-// ── REGISTRO ──────────────────────────────────────────────────────────────────
+// Normalizar mientras escribe
+document.getElementById('f-hwid').addEventListener('blur', function() {
+  if (this.value) this.value = normalizeHwId(this.value);
+});
 
 async function register() {
+  const hwRaw  = document.getElementById('f-hwid')?.value.trim();
   const email  = document.getElementById('f-email')?.value.trim();
   const pass   = document.getElementById('f-pass')?.value;
   const pass2  = document.getElementById('f-pass2')?.value;
@@ -292,11 +218,14 @@ async function register() {
   msgEl.className = 'msg';
   msgEl.textContent = '';
 
-  if (!email)          { msgEl.className='msg err'; msgEl.textContent='Introduce tu email.'; return; }
-  if (!isValidEmail(email)) { msgEl.className='msg err'; msgEl.textContent='El email no tiene un formato válido.'; return; }
+  const hw_id = normalizeHwId(hwRaw || '');
+
+  if (!hw_id)              { msgEl.className='msg err'; msgEl.textContent='Introduce el código de instalación.'; return; }
+  if (!email)              { msgEl.className='msg err'; msgEl.textContent='Introduce tu email.'; return; }
+  if (!isValidEmail(email)){ msgEl.className='msg err'; msgEl.textContent='El email no tiene un formato válido.'; return; }
   if (!pass || pass.length < 8) { msgEl.className='msg err'; msgEl.textContent='La contraseña debe tener al menos 8 caracteres.'; return; }
-  if (pass !== pass2)  { msgEl.className='msg err'; msgEl.textContent='Las contraseñas no coinciden.'; return; }
-  if (!accept)         { msgEl.className='msg err'; msgEl.textContent='Debes aceptar el uso de tus datos para continuar.'; return; }
+  if (pass !== pass2)      { msgEl.className='msg err'; msgEl.textContent='Las contraseñas no coinciden.'; return; }
+  if (!accept)             { msgEl.className='msg err'; msgEl.textContent='Debes aceptar el uso de tus datos para continuar.'; return; }
 
   btn.disabled = true;
   btn.textContent = 'Creando tu acceso…';
@@ -304,7 +233,7 @@ async function register() {
   const res = await fetch('/api/registro', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ hw_id: HW_ID, email, password: pass })
+    body:    JSON.stringify({ hw_id, email, password: pass })
   }).catch(() => null);
 
   if (!res) {
@@ -324,7 +253,7 @@ async function register() {
   }
 
   // Auto-login con las credenciales recién creadas
-  localStorage.setItem('dk_hw_id', HW_ID);
+  localStorage.setItem('dk_hw_id', hw_id);
   const { data: authData } = await sb.auth.signInWithPassword({ email, password: pass }).catch(() => ({}));
   const loggedIn = !!authData?.session;
 
@@ -334,7 +263,29 @@ async function register() {
   }
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
+function renderSuccess(clientName, autoRedirecting = false) {
+  document.getElementById('view-form').style.display = 'none';
+  document.getElementById('view-success').innerHTML = `
+    <div class="success-screen">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <div class="success-title">¡Todo listo${clientName ? ', '+clientName.split(' ')[0] : ''}!</div>
+      <div class="success-sub">Tu acceso está activado. Ya puedes controlar tu vivienda desde cualquier dispositivo.</div>
+      ${autoRedirecting
+        ? `<div class="msg ok">Entrando en tu hogar…</div>`
+        : `<a class="btn-goto" href="/cliente.html">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
+            </svg>
+            Entrar en mi hogar
+          </a>`
+      }
+    </div>`;
+  document.getElementById('view-success').style.display = '';
+}
 
 function updateStrength(pw) {
   const bars  = [document.getElementById('pw1'), document.getElementById('pw2'), document.getElementById('pw3')];
@@ -347,8 +298,9 @@ function updateStrength(pw) {
 
 function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
-verifyDevice();
+document.getElementById('f-pass2').addEventListener('keydown', e => {
+  if (e.key === 'Enter') register();
+});
 </script>
 </body>
 </html>
