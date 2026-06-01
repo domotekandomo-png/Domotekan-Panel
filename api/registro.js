@@ -26,7 +26,7 @@ module.exports = async function handler(req, res) {
   // 1. Verificar dispositivo y obtener límite de usuarios
   const [devRes, countRes] = await Promise.all([
     fetch(
-      `${SUPABASE_URL}/rest/v1/hardware_devices?hw_id=eq.${enc(hwId)}&select=id,hw_id,client_name,status,max_usuarios,wan_ip&limit=1`,
+      `${SUPABASE_URL}/rest/v1/hardware_devices?hw_id=eq.${enc(hwId)}&select=id,hw_id,client_name,status,max_usuarios&limit=1`,
       { headers: SB_HDR }
     ).catch(() => null),
     fetch(
@@ -43,15 +43,25 @@ module.exports = async function handler(req, res) {
   if (device.status !== 'active') return res.status(403).json({ error: 'Dispositivo aún no activado. Contacta con tu instalador.' });
 
   // Verificar red local: el registro solo se permite desde la WiFi del hogar
-  if (device.wan_ip) {
-    const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
-                   || req.socket?.remoteAddress || '';
-    if (clientIp && clientIp !== device.wan_ip) {
-      return res.status(403).json({
-        error: 'El registro solo está disponible desde la red WiFi de tu vivienda. Conéctate al WiFi de casa e inténtalo de nuevo.'
-      });
+  // (solo activo si la columna wan_ip existe y está configurada)
+  try {
+    const wanRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/hardware_devices?hw_id=eq.${enc(hwId)}&select=wan_ip&limit=1`,
+      { headers: SB_HDR }
+    ).catch(() => null);
+    if (wanRes?.ok) {
+      const [wanData] = await wanRes.json().catch(() => [{}]);
+      if (wanData?.wan_ip) {
+        const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+                       || req.socket?.remoteAddress || '';
+        if (clientIp && clientIp !== wanData.wan_ip) {
+          return res.status(403).json({
+            error: 'El registro solo está disponible desde la red WiFi de tu vivienda. Conéctate al WiFi de casa e inténtalo de nuevo.'
+          });
+        }
+      }
     }
-  }
+  } catch (_) { /* columna wan_ip aún no existe — continuar sin restricción */ }
 
   // Límite de usuarios (max_usuarios en BD, default 5)
   const maxUsers = device.max_usuarios ?? 5;
