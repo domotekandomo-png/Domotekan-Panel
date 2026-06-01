@@ -948,7 +948,8 @@ async function actualizarInstalacion() {
     const { error } = await sb.from('hardware_devices').update(datos).eq('id', editingServerId);
 
     if (error) {
-        showToast('Error al actualizar la base de datos');
+        console.error('[actualizarInstalacion] Supabase error:', error);
+        showToast('Error al actualizar: ' + (error.message || error.code || 'desconocido'));
         btn.disabled = false;
     } else {
         showToast('Instalación actualizada correctamente');
