@@ -1214,9 +1214,17 @@ async function loadDashboard() {
 async function loadHardware() {
   const tbody = document.getElementById('hardware-body');
   tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando...</td></tr>';
-  const { data: rows, error } = await sb.from('hardware_devices').select('*').order('id', { ascending: false });
+
+  const [{ data: rows, error }, { data: hbs }] = await Promise.all([
+    sb.from('hardware_devices').select('*').order('id', { ascending: false }),
+    sb.from('heartbeats').select('hw_id, recibido_en, cpu, ram, disco, temperatura').not('hw_id', 'is', null).order('recibido_en', { ascending: false })
+  ]);
+
   if (error) { console.error('[loadHardware]', error); tbody.innerHTML = '<tr><td colspan="6" class="empty">Error al cargar</td></tr>'; return; }
   if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay hardware registrado aún</td></tr>'; return; }
+
+  const hbMap = {};
+  (hbs || []).forEach(h => { if (!hbMap[h.hw_id]) hbMap[h.hw_id] = h; });
 
   const pending = rows.filter(r => r.status !== 'active').length;
   const active  = rows.filter(r => r.status === 'active').length;
@@ -1226,28 +1234,42 @@ async function loadHardware() {
   if (aEl) aEl.textContent = active  + ' dados de alta';
 
   tbody.innerHTML = rows.map(r => {
+    const hb = r.hw_id ? hbMap[r.hw_id] : null;
+    const lastSeen = hb?.recibido_en || r.last_seen;
     const isActive = r.status === 'active';
-    const isOnlineNow = isActive && isOnline(r.last_seen);
+    const isOnlineNow = isActive && isOnline(lastSeen);
     const badgeClass = !isActive ? 'warn' : (isOnlineNow ? 'online' : 'offline');
     const badgeLabel = !isActive ? 'Sin asignar' : (isOnlineNow ? 'Online' : 'Offline');
+    const stats = hb ? `CPU ${Math.round(hb.cpu||0)}% · RAM ${Math.round(hb.ram||0)}% · ${Math.round(hb.temperatura||0)}°C` : '';
     return `<tr onclick="openDetailPanel('${r.id}')">
       <td style="font-family:'DM Mono',monospace;font-size:12px">${r.hw_id || '—'}</td>
       <td><span class="badge ${badgeClass}"><span class="badge-dot"></span>${badgeLabel}</span></td>
       <td>${r.client_name || '—'}</td>
       <td style="font-size:13px;color:var(--text-2)">${r.direccion || r.alias || '—'}</td>
-      <td style="font-size:12px;color:var(--text-3)">${r.last_seen ? timeAgo(r.last_seen) : '—'}</td>
+      <td style="font-size:12px;color:var(--text-3)">${lastSeen ? timeAgo(lastSeen) : '—'}${stats ? `<br><span style="color:var(--text-3);font-size:11px">${stats}</span>` : ''}</td>
     </tr>`;
   }).join('');
 }
 
 // DETAIL PANEL
 async function openDetailPanel(id) {
-  const { data: r } = await sb.from('hardware_devices').select('*').eq('id', id).single();
+  const [{ data: r }, { data: hbs }] = await Promise.all([
+    sb.from('hardware_devices').select('*').eq('id', id).single(),
+    sb.from('heartbeats').select('recibido_en,cpu,ram,disco,temperatura').eq('hw_id', id.hw_id || '').order('recibido_en', { ascending: false }).limit(1)
+  ]);
   if (!r) return;
+
+  const { data: hbData } = await sb.from('heartbeats')
+    .select('recibido_en,cpu,ram,disco,temperatura')
+    .eq('hw_id', r.hw_id || '')
+    .order('recibido_en', { ascending: false })
+    .limit(1);
+  const hb = hbData?.[0] || null;
+  const lastSeen = hb?.recibido_en || r.last_seen;
 
   const isSuperadmin = currentProfile?.rol === 'superadmin';
   const isActive = r.status === 'active';
-  const online = isActive && isOnline(r.last_seen);
+  const online = isActive && isOnline(lastSeen);
   const badgeClass = !isActive ? 'warn' : (online ? 'online' : 'offline');
   const badgeLabel = !isActive ? 'Sin asignar' : (online ? 'Online' : 'Offline');
   const nombre = r.client_name || r.alias || r.hw_id || '—';
@@ -1268,9 +1290,18 @@ async function openDetailPanel(id) {
       ${r.cp        ? `<div class="detail-row"><span class="detail-label">CP</span><span class="detail-value">${r.cp}</span></div>` : ''}
       ${r.comunidad ? `<div class="detail-row"><span class="detail-label">Comunidad</span><span class="detail-value">${r.comunidad}</span></div>` : ''}
       ${r.pais      ? `<div class="detail-row"><span class="detail-label">País</span><span class="detail-value">${r.pais}</span></div>` : ''}
-      <div class="detail-row"><span class="detail-label">Último contacto</span><span class="detail-value">${r.last_seen ? timeAgo(r.last_seen) : '—'}</span></div>
+      <div class="detail-row"><span class="detail-label">Último contacto</span><span class="detail-value">${lastSeen ? timeAgo(lastSeen) : '—'}</span></div>
       ${r.assigned_at ? `<div class="detail-row"><span class="detail-label">Alta el</span><span class="detail-value">${new Date(r.assigned_at).toLocaleDateString('es-ES')}</span></div>` : ''}
-    </div>`;
+    </div>
+    ${hb ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Estado del servidor</div>
+      <div class="detail-row"><span class="detail-label">CPU</span><span class="detail-value">${Math.round(hb.cpu||0)}%</span></div>
+      <div class="detail-row"><span class="detail-label">RAM</span><span class="detail-value">${Math.round(hb.ram||0)}%</span></div>
+      <div class="detail-row"><span class="detail-label">Disco</span><span class="detail-value">${Math.round(hb.disco||0)}%</span></div>
+      <div class="detail-row"><span class="detail-label">Temperatura</span><span class="detail-value">${Math.round(hb.temperatura||0)}°C</span></div>
+    </div>` : ''}
+    `;
 
   if (isActive && r.client_url) {
     html += `
