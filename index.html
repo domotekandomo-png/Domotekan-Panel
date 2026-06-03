@@ -1077,7 +1077,15 @@ async function getServersWithStats() {
   const { data: servers, error: errSrv } = await Promise.race([query, timeout]).catch(e => ({ data: null, error: e }));
   if (errSrv) console.error('[getServersWithStats] hardware_devices error:', errSrv);
 
+  // Cargar último heartbeat por servidor_id para obtener estado real
+  const { data: hbs } = await sb.from('heartbeats')
+    .select('servidor_id, recibido_en, cpu, ram, disco, temperatura')
+    .order('recibido_en', { ascending: false });
+  const hbMap = {};
+  (hbs || []).forEach(h => { if (!hbMap[h.servidor_id]) hbMap[h.servidor_id] = h; });
+
   return (servers || []).map(s => {
+    const hb = s.servidor_id ? hbMap[s.servidor_id] : null;
     return {
       id:               s.id,
       hw_id:            s.hw_id || null,
@@ -1087,11 +1095,11 @@ async function getServersWithStats() {
       status:           s.status || 'pending',
       client_url:       s.client_url || null,
       instalador_nombre: s.assigned_by || 'Admin',
-      ultimo_heartbeat: s.last_seen || null,
-      cpu_last:         0,
-      ram_last:         0,
-      disco_last:       0,
-      temperatura_last: null
+      ultimo_heartbeat: hb?.recibido_en || s.last_seen || null,
+      cpu_last:         hb?.cpu  ?? 0,
+      ram_last:         hb?.ram  ?? 0,
+      disco_last:       hb?.disco ?? 0,
+      temperatura_last: hb?.temperatura ?? null
     };
   });
 }
