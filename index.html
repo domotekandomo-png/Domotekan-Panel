@@ -1077,15 +1077,16 @@ async function getServersWithStats() {
   const { data: servers, error: errSrv } = await Promise.race([query, timeout]).catch(e => ({ data: null, error: e }));
   if (errSrv) console.error('[getServersWithStats] hardware_devices error:', errSrv);
 
-  // Cargar último heartbeat por servidor_id para obtener estado real
+  // Cargar último heartbeat por hw_id (identificador universal de instalación)
   const { data: hbs } = await sb.from('heartbeats')
-    .select('servidor_id, recibido_en, cpu, ram, disco, temperatura')
+    .select('hw_id, recibido_en, cpu, ram, disco, temperatura')
+    .not('hw_id', 'is', null)
     .order('recibido_en', { ascending: false });
   const hbMap = {};
-  (hbs || []).forEach(h => { if (!hbMap[h.servidor_id]) hbMap[h.servidor_id] = h; });
+  (hbs || []).forEach(h => { if (!hbMap[h.hw_id]) hbMap[h.hw_id] = h; });
 
   return (servers || []).map(s => {
-    const hb = s.servidor_id ? hbMap[s.servidor_id] : null;
+    const hb = s.hw_id ? hbMap[s.hw_id] : null;
     return {
       id:               s.id,
       hw_id:            s.hw_id || null,
