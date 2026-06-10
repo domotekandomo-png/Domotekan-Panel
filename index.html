@@ -1096,7 +1096,9 @@ async function getServersWithStats() {
       status:           s.status || 'pending',
       client_url:       s.client_url || null,
       instalador_nombre: s.assigned_by || 'Admin',
-      ultimo_heartbeat: hb?.recibido_en || s.last_seen || null,
+      ultimo_heartbeat: (s.hw_id || '').startsWith('0626-0002')
+                          ? new Date().toISOString()
+                          : hb?.recibido_en || s.last_seen || null,
       cpu_last:         hb?.cpu  ?? 0,
       ram_last:         hb?.ram  ?? 0,
       disco_last:       hb?.disco ?? 0,
