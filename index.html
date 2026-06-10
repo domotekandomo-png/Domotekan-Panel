@@ -1068,6 +1068,37 @@ function serverRow(s) {
   return `<tr onclick="openDetailPanel('${s.id}')">${row}</tr>`;
 }
 
+// ── DATOS DEMO ────────────────────────────────────────────────────────────
+const _demoNow = Date.now();
+const DEMO_SERVERS = [
+  { id:'demo-001', hw_id:'0126-0001', nombre:'Itziar Erkiaga',     alias:'Etxea',   direccion:'Calle Iturribide 12, 3B, Bilbao',             online:true,  cpu:14, ram:38, disco:24, temp:40 },
+  { id:'demo-002', hw_id:'0126-0002', nombre:'Mikel Etxeberria',   alias:'Pisua',   direccion:'Av. Zumalacárregui 8, 2D, Donostia',          online:true,  cpu: 8, ram:29, disco:31, temp:37 },
+  { id:'demo-003', hw_id:'0226-0001', nombre:'Amaia Zubikarai',    alias:'Etxea',   direccion:'Calle Autonomía 34, 2A, Bilbao',               online:true,  cpu:22, ram:51, disco:18, temp:42 },
+  { id:'demo-004', hw_id:'0226-0002', nombre:'Jon Urrutia',         alias:'Pisua',   direccion:'Portuetxe 7, 1D, Donostia',                   online:true,  cpu: 5, ram:44, disco:27, temp:39 },
+  { id:'demo-005', hw_id:'0226-0003', nombre:'Leire Bengoa',        alias:'Etxea',   direccion:'Plaza Unamuno 3, 4C, Bilbao',                  online:true,  cpu:18, ram:36, disco:45, temp:41 },
+  { id:'demo-006', hw_id:'0326-0001', nombre:'Gorka Aguirre',       alias:'Txaleta', direccion:'Calle Ramón y Cajal 15, Vitoria-Gasteiz',      online:true,  cpu:31, ram:62, disco:38, temp:44 },
+  { id:'demo-007', hw_id:'0326-0002', nombre:'Nerea Arrizabalaga', alias:'Pisua',   direccion:'Calle Elcano 22, 5B, Bilbao',                  online:true,  cpu: 9, ram:27, disco:19, temp:38 },
+  { id:'demo-008', hw_id:'0326-0003', nombre:'Iñaki Garaizar',      alias:'Etxea',   direccion:'Barrio Elexalde 4, Getxo',                     online:true,  cpu:16, ram:48, disco:33, temp:40 },
+  { id:'demo-009', hw_id:'0426-0001', nombre:'Miren Otxoa',         alias:'Pisua',   direccion:'Calle Artekale 9, 3A, Durango',                online:true,  cpu:11, ram:33, disco:28, temp:39 },
+  { id:'demo-010', hw_id:'0426-0002', nombre:'Xabier Larrauri',     alias:'Etxea',   direccion:'Av. Lehendakari Aguirre 41, 3A, Bilbao',       online:true,  cpu:27, ram:55, disco:41, temp:43 },
+  { id:'demo-011', hw_id:'0426-0003', nombre:'Ainhoa Arrieta',      alias:'Pisua',   direccion:'Calle Easo 17, 2D, Donostia',                  online:true,  cpu: 7, ram:31, disco:22, temp:37 },
+  { id:'demo-012', hw_id:'0426-0004', nombre:'Andoni Ormaetxea',   alias:'Etxea',   direccion:'Calle Sabino Arana 5, 1B, Barakaldo',          online:true,  cpu:19, ram:42, disco:35, temp:41 },
+  { id:'demo-013', hw_id:'0526-0003', nombre:'Uxue Berasategi',    alias:'Pisua',   direccion:'Calle Garibai 28, 4C, Donostia',               online:true,  cpu:13, ram:39, disco:26, temp:39 },
+  { id:'demo-014', hw_id:'0526-0004', nombre:'Julen Urquijo',       alias:'Txaleta', direccion:'Av. Basagoiti 33, Algorta',                    online:true,  cpu:24, ram:47, disco:30, temp:42 },
+  { id:'demo-015', hw_id:'0526-0005', nombre:'Izaro Elorriaga',     alias:'Pisua',   direccion:'Calle Correo 11, 3C, Bilbao',                  online:true,  cpu: 6, ram:25, disco:17, temp:36 },
+  { id:'demo-016', hw_id:'0526-0006', nombre:'Patxi Ugarte',        alias:'Etxea',   direccion:'Calle Nagusia 7, Zarautz',                     online:true,  cpu:20, ram:53, disco:44, temp:43 },
+  { id:'demo-017', hw_id:'0526-0007', nombre:'Maite Landa',         alias:'Pisua',   direccion:'Calle San Francisco 42, 2A, Bilbao',           online:true,  cpu:15, ram:37, disco:29, temp:40 },
+  { id:'demo-018', hw_id:'0626-0004', nombre:'Eneko Zubeldia',      alias:'Etxea',   direccion:'Calle Fueros 19, 2B, Vitoria-Gasteiz',         online:true,  cpu:10, ram:44, disco:32, temp:38 },
+  { id:'demo-019', hw_id:'0626-0005', nombre:'Ane Murua',           alias:'Pisua',   direccion:'Av. de la Libertad 8, 4B, Donostia',           online:true,  cpu:23, ram:50, disco:36, temp:41 },
+  { id:'demo-020', hw_id:'0626-0006', nombre:'Txomin Barrenetxea', alias:'Etxea',   direccion:'Calle Uribitarte 16, 1A, Bilbao',              online:true,  cpu: 8, ram:30, disco:21, temp:37 },
+  { id:'demo-021', hw_id:'0326-0004', nombre:'Garazi Iturrioz',    alias:'Etxea',   direccion:'Calle Mayor 22, Hernani',          online:false, cpu:0, ram:0, disco:0, temp:null, lastSeen:new Date(_demoNow -  5*86400000).toISOString() },
+  { id:'demo-022', hw_id:'0226-0004', nombre:'Haritz Egiluz',      alias:'Pisua',   direccion:'Calle Urazurrutia 8, 1A, Bilbao',  online:false, cpu:0, ram:0, disco:0, temp:null, lastSeen:new Date(_demoNow - 12*86400000).toISOString() },
+  { id:'demo-023', hw_id:'0426-0005', nombre:'Oihane Agirre',      alias:'Etxea',   direccion:'Calle Goienkale 4, Ermua',         online:false, cpu:0, ram:0, disco:0, temp:null, lastSeen:new Date(_demoNow -  3*86400000).toISOString() },
+  { id:'demo-024', hw_id:'0326-0005', nombre:'Joseba Arregui',     alias:'Pisua',   direccion:'Calle Iparragirre 31, 4D, Bilbao', online:false, cpu:0, ram:0, disco:0, temp:null, lastSeen:new Date(_demoNow -  8*86400000).toISOString() },
+  { id:'demo-025', hw_id:'0126-0003', nombre:'Saioa Bidaur',       alias:'Etxea',   direccion:'Calle Santa María 6, Lekeitio',    online:false, cpu:0, ram:0, disco:0, temp:null, lastSeen:new Date(_demoNow - 19*86400000).toISOString() },
+];
+const DEMO_MAP = Object.fromEntries(DEMO_SERVERS.map(s => [s.id, s]));
+
 // ==========================================
 // LECTURA DE DATOS — tabla hardware_devices
 // ==========================================
@@ -1085,7 +1116,7 @@ async function getServersWithStats() {
   const hbMap = {};
   (hbs || []).forEach(h => { if (!hbMap[h.hw_id]) hbMap[h.hw_id] = h; });
 
-  return (servers || []).map(s => {
+  const real = (servers || []).map(s => {
     const hb = s.hw_id ? hbMap[s.hw_id] : null;
     return {
       id:               s.id,
@@ -1105,6 +1136,24 @@ async function getServersWithStats() {
       temperatura_last: hb?.temperatura ?? null
     };
   });
+  const demo = DEMO_SERVERS.map(d => ({
+    id:               d.id,
+    hw_id:            d.hw_id,
+    nombre:           d.nombre,
+    alias:            d.alias,
+    direccion:        d.direccion,
+    status:           'active',
+    client_url:       null,
+    instalador_nombre: 'Admin',
+    ultimo_heartbeat: d.online
+      ? new Date(Date.now() - Math.floor(Math.random() * 90000)).toISOString()
+      : d.lastSeen,
+    cpu_last:         d.cpu,
+    ram_last:         d.ram,
+    disco_last:       d.disco,
+    temperatura_last: d.temp,
+  }));
+  return [...real, ...demo];
 }
 
 // CHARTS
@@ -1255,6 +1304,42 @@ async function loadHardware() {
 
 // DETAIL PANEL
 async function openDetailPanel(id) {
+  if (typeof id === 'string' && id.startsWith('demo-')) {
+    const d = DEMO_MAP[id];
+    if (!d) return;
+    const lastSeen = d.online
+      ? new Date(Date.now() - Math.floor(Math.random() * 90000)).toISOString()
+      : d.lastSeen;
+    const badgeClass = d.online ? 'online' : 'offline';
+    const badgeLabel = d.online ? 'Online' : 'Offline';
+    const html = `
+      <button class="detail-close" onclick="closeDetailPanel()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div><span class="badge ${badgeClass}"><span class="badge-dot"></span>${badgeLabel}</span></div>
+      <div class="detail-name">${d.nombre}</div>
+      <div class="detail-hwid">${d.hw_id}</div>
+      <div class="detail-section">
+        <div class="detail-section-title">Instalación</div>
+        <div class="detail-row"><span class="detail-label">Alias</span><span class="detail-value">${d.alias}</span></div>
+        <div class="detail-row"><span class="detail-label">Dirección</span><span class="detail-value">${d.direccion}</span></div>
+        <div class="detail-row"><span class="detail-label">Último contacto</span><span class="detail-value">${timeAgo(lastSeen)}</span></div>
+      </div>
+      ${d.online ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Estado del servidor</div>
+        <div class="detail-row"><span class="detail-label">CPU</span><span class="detail-value">${d.cpu}%</span></div>
+        <div class="detail-row"><span class="detail-label">RAM</span><span class="detail-value">${d.ram}%</span></div>
+        <div class="detail-row"><span class="detail-label">Disco</span><span class="detail-value">${d.disco}%</span></div>
+        ${d.temp !== null ? `<div class="detail-row"><span class="detail-label">Temperatura</span><span class="detail-value">${d.temp}°C</span></div>` : ''}
+      </div>` : ''}
+    `;
+    document.getElementById('detail-content').innerHTML = html;
+    document.getElementById('detail-panel').classList.add('open');
+    document.getElementById('detail-overlay').classList.add('open');
+    return;
+  }
+
   const [{ data: r }, { data: hbs }] = await Promise.all([
     sb.from('hardware_devices').select('*').eq('id', id).single(),
     sb.from('heartbeats').select('recibido_en,cpu,ram,disco,temperatura').eq('hw_id', id.hw_id || '').order('recibido_en', { ascending: false }).limit(1)
