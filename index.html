@@ -980,15 +980,19 @@ async function eliminarInstalacion(id, nombre, hwId) {
   if (!seguro) return;
 
   if (hwId) {
-    // Limpieza completa vía n8n: WireGuard + NPM + Supabase
+    // Limpieza completa vía servidor: WireGuard + NPM + Supabase
     showToast('🔄 Eliminando instalación...');
     try {
-      const resp = await fetch('https://n8n.domotekan.com/webhook/hw-delete', {
+      const { data: { session } } = await sb.auth.getSession();
+      const resp = await fetch('/api/hw-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hw_id: hwId, admin_token: 'DOMOTEKAN_ADMIN_2026' })
+        body: JSON.stringify({ hw_id: hwId, auth_token: session?.access_token })
       });
-      if (!resp.ok) throw new Error('n8n respondió ' + resp.status);
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || 'Error al eliminar (HTTP ' + resp.status + ')');
+      }
       showToast('🗑️ Instalación eliminada completamente');
       loadDashboard();
       loadServers();
