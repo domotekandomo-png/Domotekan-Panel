@@ -4,6 +4,7 @@
 
 const SUPABASE_URL         = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const { checkRateLimit }   = require('./_ratelimit');
 
 const ALLOWED_DOMAINS = ['light', 'switch', 'cover', 'climate', 'sensor',
                          'binary_sensor', 'input_boolean', 'fan'];
@@ -67,7 +68,13 @@ module.exports = async function handler(req, res) {
   const haHdr  = { Authorization: `Bearer ${srv.ha_token}`, 'Content-Type': 'application/json' };
 
   // ── LOAD HOME ──────────────────────────────────────────────────────────────
+  // call_service y get_state están exentos de rate limit (son controles en tiempo real)
   if (action === 'load_home') {
+    const rlKey = `ha-proxy:${auth_token.slice(-16)}`;
+    if (!(await checkRateLimit(rlKey, 30))) {
+      return res.status(429).json({ error: 'Demasiadas cargas. Espera un momento.' });
+    }
+
     const [areasTpl, statesRes] = await Promise.allSettled([
       haPost(`${haBase}/api/template`, haHdr, { template: '{{ areas() | list | tojson }}' }).then(r => r.text()),
       haGet(`${haBase}/api/states`, haHdr).then(r => r.json())

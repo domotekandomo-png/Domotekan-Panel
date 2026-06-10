@@ -83,5 +83,18 @@ module.exports = async function handler(req, res) {
     return res.status(502).json({ error: `n8n respondió ${status}. Comprueba que el workflow está activo.` });
   }
 
+  // Audit log (fire-and-forget — no bloquea la respuesta)
+  fetch(`${SUPABASE_URL}/rest/v1/audit_log`, {
+    method:  'POST',
+    headers: { ...SB_HDR, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      user_email: userEmail,
+      action:     'hw_delete',
+      resource:   hw_id,
+      detail:     JSON.stringify({ hw_id }),
+      ip:         (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || null,
+    }),
+  }).catch(() => null);
+
   return res.status(200).json({ ok: true });
 };

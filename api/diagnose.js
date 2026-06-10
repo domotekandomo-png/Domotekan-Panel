@@ -5,6 +5,7 @@
 const SUPABASE_URL        = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const ANTHROPIC_API_KEY   = process.env.ANTHROPIC_API_KEY;
+const { checkRateLimit }  = require('./_ratelimit');
 
 module.exports = async function handler(req, res) {
   const _origin = req.headers.origin;
@@ -19,6 +20,13 @@ module.exports = async function handler(req, res) {
   const { server_id, auth_token } = req.body || {};
   if (!server_id || !auth_token) {
     return res.status(400).json({ error: 'Faltan parámetros: server_id y auth_token son obligatorios' });
+  }
+
+  // ── 0. Rate limit: 5 diagnoses per user per minute ────────────────────────
+  const rlIdentifier = `diagnose:${auth_token.slice(-16)}`; // last 16 chars as key (not storing full token)
+  const allowed = await checkRateLimit(rlIdentifier, 5);
+  if (!allowed) {
+    return res.status(429).json({ error: 'Demasiadas solicitudes. Espera un minuto antes de volver a diagnosticar.' });
   }
 
   // ── 1. Verificar sesión del usuario ───────────────────────────────────────

@@ -662,6 +662,10 @@ const SUPABASE_URL = 'https://xsidbxnrtvjgjhoscyqp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__k8db4ohZo7ldZt30dpwkA_0nyQuD3F';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+async function auditLog(action, resource, detail = {}) {
+  try { await sb.from('audit_log').insert({ user_email: currentProfile?.email || null, action, resource: String(resource), detail }); } catch (_) {}
+}
+
 let chartTrend = null;
 let chartServers = null;
 let currentUser = null;
@@ -870,6 +874,7 @@ async function guardarInstalacion() {
     msgEl.style.color = 'var(--green)';
     msgEl.textContent = '✅ Instalación activada — ' + data.client_url;
     showToast('✅ ' + cliente + ' dado de alta');
+    await auditLog('hw_create', hw_id, { client_name: cliente });
 
     // Capturar WAN IP del instalador (que está en casa del cliente) para restringir el registro
     try {
@@ -963,6 +968,7 @@ async function actualizarInstalacion() {
         btn.disabled = false;
     } else {
         showToast('Instalación actualizada correctamente');
+        await auditLog('hw_edit', editingServerId, { fields: Object.keys(datos) });
         closeAltaModal();
         loadDashboard();
         loadServers();
@@ -1518,6 +1524,7 @@ async function loadInstallers() {
 
 async function toggleUser(id, activo) {
   await sb.from('usuarios').update({ activo: !activo }).eq('id', id);
+  await auditLog(activo ? 'user_deactivate' : 'user_activate', id);
   loadInstallers();
   showToast(activo ? 'Usuario desactivado' : 'Usuario activado');
 }
@@ -1579,6 +1586,7 @@ async function openInviteModal() {
     creado_por: currentProfile.id,
     expira_en: expira.toISOString()
   });
+  await auditLog('invite_create', token, { expira_en: expira.toISOString() });
 
   const link = `${location.origin}/register?invite=${token}`;
   document.getElementById('invite-link-text').textContent = link;
