@@ -345,13 +345,7 @@ tbody tr:hover { background: var(--bg); }
 </head>
 <body>
 
-<div id="loading-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);">
-  <div style="text-align:center">
-    <div style="width:28px;height:28px;border-radius:50%;border:3px solid var(--border-strong);border-top-color:var(--green);animation:spin 0.8s linear infinite;margin:0 auto 12px"></div>
-    <div style="font-size:13px;color:var(--text-3)">Verificando sesión…</div>
-  </div>
-</div>
-<div id="auth-screen" style="display:none">
+<div id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">
       <svg width="38" height="38" viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin-bottom:6px">
@@ -485,7 +479,7 @@ tbody tr:hover { background: var(--bg); }
           <input type="text" id="server-search" placeholder="Buscar por nombre, instalador o dirección..."
                  onkeyup="filterServers()"
                  style="padding: 8px 14px; border-radius: 6px; border: 0.5px solid var(--border-strong); font-size: 13px; width: 300px;">
-          <button class="btn btn-green create-only" onclick="openAltaModal()">
+          <button class="btn btn-green" onclick="openAltaModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Dar de alta instalación
           </button>
@@ -681,12 +675,6 @@ let inviteToken = null;
 let editingServerId = null;
 let appInitialized = false;
 
-// ── RBAC helpers ──────────────────────────────────────────────────────────────
-function _rol()       { return currentProfile?.rol || ''; }
-function canViewAll() { return _rol() === 'superadmin'; }
-function canCreate()  { return ['superadmin', 'admin', 'instalador', 'user'].includes(_rol()); }
-function canDelete()  { return ['superadmin', 'admin', 'instalador'].includes(_rol()); }
-
 // AUTH
 async function login() {
   const email = document.getElementById('auth-email').value.trim();
@@ -715,39 +703,25 @@ async function login() {
 }
 
 async function initApp(user) {
-  if (appInitialized) return;
   currentUser = user;
 
-  const _timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
-  const { data: profile, error } = await Promise.race([
-    sb.from('usuarios').select('*').eq('email', user.email).single(),
-    _timeout
-  ]).catch(e => ({ data: null, error: e }));
+  const { data: profile, error } = await sb.from('usuarios').select('*').eq('email', user.email).single();
 
-  if (error) {
-    const isNotFound = error?.code === 'PGRST116';
-    console.error('[initApp] Error cargando perfil:', error?.code, error?.message || error);
-    if (isNotFound) await sb.auth.signOut();
-    showAuthScreen();
-    const errEl = document.getElementById('auth-error');
-    if (errEl) errEl.textContent = isNotFound
-      ? 'Usuario no registrado en el panel. Contacta con tu instalador.'
-      : 'Error de conexión. Inténtalo de nuevo.';
-    return;
-  }
-
-  if (!profile) {
+  if (error || !profile) {
+    const msg = error ? `[${error.code}] ${error.message}` : 'Usuario no encontrado en la tabla usuarios.';
+    console.error('[initApp] Error cargando perfil:', msg, error);
     await sb.auth.signOut();
-    showAuthScreen();
     const errEl = document.getElementById('auth-error');
-    if (errEl) errEl.textContent = 'Usuario no encontrado. Contacta con tu instalador.';
+    if (errEl) errEl.textContent = 'Error al cargar perfil: ' + msg;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    const btn = document.querySelector('.btn-primary');
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
     return;
   }
 
-  appInitialized = true;
   currentProfile = profile;
 
-  document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
@@ -760,9 +734,6 @@ async function initApp(user) {
   if (profile.rol !== 'superadmin') {
     document.querySelectorAll('.superadmin-only').forEach(el => el.style.display = 'none');
   }
-  if (!canCreate()) {
-    document.querySelectorAll('.create-only').forEach(el => el.style.display = 'none');
-  }
 
   loadDashboard();
   loadAlertBadge();
@@ -772,15 +743,6 @@ async function logout() {
   appInitialized = false;
   await sb.auth.signOut();
   // onAuthStateChange SIGNED_OUT gestiona el resto
-}
-
-function showAuthScreen() {
-  document.getElementById('loading-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('auth-screen').style.display = 'flex';
-  const btn = document.querySelector('.btn-primary');
-  if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
-  document.getElementById('auth-error').textContent = '';
 }
 
 // NAVIGATION
@@ -894,8 +856,7 @@ async function guardarInstalacion() {
         cp,
         comunidad:    com,
         pais,
-        assigned_by:  currentProfile?.email || '',
-        empresa_id:   currentProfile?.empresa_id || null
+        assigned_by:  currentProfile?.email || ''
       })
     });
 
@@ -919,10 +880,9 @@ async function guardarInstalacion() {
     try {
       const ipRes = await fetch('/api/my-ip').catch(() => null);
       const { ip: wanIp } = await ipRes?.json().catch(() => ({})) || {};
-      const patch = {};
-      if (wanIp && wanIp !== 'unknown') patch.wan_ip = wanIp;
-      if (currentProfile?.empresa_id)  patch.empresa_id = currentProfile.empresa_id;
-      if (Object.keys(patch).length)   await sb.from('hardware_devices').update(patch).eq('hw_id', hw_id);
+      if (wanIp && wanIp !== 'unknown') {
+        await sb.from('hardware_devices').update({ wan_ip: wanIp }).eq('hw_id', hw_id);
+      }
     } catch (_) {}
 
     setTimeout(() => {
@@ -942,9 +902,7 @@ async function guardarInstalacion() {
 // EDICIÓN DE INSTALACIONES
 async function openEditModal(id) {
     editingServerId = id;
-    const { data: s } = await sb.from('hardware_devices')
-      .select('id,hw_id,client_name,alias,direccion,cp,comunidad,pais,client_url')
-      .eq('id', id).single();
+    const { data: s } = await sb.from('hardware_devices').select('*').eq('id', id).single();
 
     if (s) {
         // Título e indicador de modo edición
@@ -969,17 +927,12 @@ async function openEditModal(id) {
         if (urlEl)   urlEl.value = s.client_url || '';
 
         // Mostrar campo HA Token (vacío — no mostrar el token existente por seguridad)
-        // Consulta diferida: solo este dispositivo, solo ha_token, solo para el placeholder
         const hatokenWrap = document.getElementById('alta-hatoken-wrap');
         const hatokenEl   = document.getElementById('alta-hatoken');
         if (hatokenWrap) hatokenWrap.style.display = 'block';
         if (hatokenEl) {
           hatokenEl.value = '';
-          hatokenEl.placeholder = 'eyJ…token largo de HA…';
-          sb.from('hardware_devices').select('ha_token').eq('id', id).single()
-            .then(({ data: t }) => {
-              if (hatokenEl && t?.ha_token) hatokenEl.placeholder = '●●●● (token ya configurado — pega uno nuevo para reemplazar)';
-            }).catch(() => null);
+          hatokenEl.placeholder = s.ha_token ? '●●●● (token ya configurado — pega uno nuevo para reemplazar)' : 'eyJ…token largo de HA…';
         }
 
         document.getElementById('alta-modal').classList.add('open');
@@ -1161,11 +1114,7 @@ const DEMO_MAP = Object.fromEntries(DEMO_SERVERS.map(s => [s.id, s]));
 // ==========================================
 async function getServersWithStats() {
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
-  let query = sb.from('hardware_devices').select('id,hw_id,client_name,alias,direccion,status,client_url,assigned_by,last_seen').order('id', { ascending: false });
-  if (!canViewAll()) {
-    if (currentProfile?.empresa_id)  query = query.eq('empresa_id', currentProfile.empresa_id);
-    else if (currentProfile?.email)  query = query.eq('assigned_by', currentProfile.email);
-  }
+  const query = sb.from('hardware_devices').select('*').order('id', { ascending: false });
   const { data: servers, error: errSrv } = await Promise.race([query, timeout]).catch(e => ({ data: null, error: e }));
   if (errSrv) console.error('[getServersWithStats] hardware_devices error:', errSrv);
 
@@ -1327,14 +1276,8 @@ async function loadHardware() {
   const tbody = document.getElementById('hardware-body');
   tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando...</td></tr>';
 
-  let hwListQuery = sb.from('hardware_devices').select('id,hw_id,client_name,alias,direccion,status,last_seen').order('id', { ascending: false });
-  if (!canViewAll()) {
-    if (currentProfile?.empresa_id)  hwListQuery = hwListQuery.eq('empresa_id', currentProfile.empresa_id);
-    else if (currentProfile?.email)  hwListQuery = hwListQuery.eq('assigned_by', currentProfile.email);
-  }
-
   const [{ data: rows, error }, { data: hbs }] = await Promise.all([
-    hwListQuery,
+    sb.from('hardware_devices').select('*').order('id', { ascending: false }),
     sb.from('heartbeats').select('hw_id, recibido_en, cpu, ram, disco, temperatura').not('hw_id', 'is', null).order('recibido_en', { ascending: false })
   ]);
 
@@ -1443,7 +1386,7 @@ async function openDetailPanel(id) {
   }
 
   const [{ data: r }, { data: hbs }] = await Promise.all([
-    sb.from('hardware_devices').select('id,hw_id,client_name,alias,direccion,cp,comunidad,pais,status,client_url,wg_client_ip,last_seen,assigned_at,empresa_id,assigned_by').eq('id', id).single(),
+    sb.from('hardware_devices').select('*').eq('id', id).single(),
     sb.from('heartbeats').select('recibido_en,cpu,ram,disco,temperatura').eq('hw_id', id.hw_id || '').order('recibido_en', { ascending: false }).limit(1)
   ]);
   if (!r) return;
@@ -1516,29 +1459,16 @@ async function openDetailPanel(id) {
     </div>`;
   }
 
-  // ¿Puede este usuario eliminar ESTE registro concreto?
-  // admin/instalador: sí si empresa_id coincide, o si empresa_id es null y assigned_by coincide (registros legacy)
-  const canDeleteThis = isSuperadmin || (
-    ['admin', 'instalador'].includes(_rol()) && (
-      (r.empresa_id != null && r.empresa_id === currentProfile?.empresa_id) ||
-      (r.empresa_id == null && r.assigned_by === currentProfile?.email)
-    )
-  );
-
   if (isSuperadmin) {
     html += `
     <div class="detail-section">
       <div class="detail-section-title" style="color:var(--amber)">Solo administrador</div>
       ${r.client_url  ? `<div class="detail-row"><span class="detail-label">URL VPN</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:11px">${r.client_url}</span></div>` : ''}
       ${r.wg_client_ip ? `<div class="detail-row"><span class="detail-label">IP WireGuard</span><span class="detail-value" style="font-family:'DM Mono',monospace">${r.wg_client_ip}</span></div>` : ''}
-    </div>`;
-  }
-
-  if (isSuperadmin || ['admin', 'instalador', 'user'].includes(_rol())) {
-    html += `
+    </div>
     <div class="detail-actions">
       <button class="action-btn" onclick="closeDetailPanel();openEditModal('${r.id}')">✏️ Editar</button>
-      ${canDeleteThis ? `<button class="action-btn danger" onclick="closeDetailPanel();eliminarInstalacion('${r.id}','${safeName}','${r.hw_id || ''}')">🗑️ Eliminar</button>` : ''}
+      <button class="action-btn danger" onclick="closeDetailPanel();eliminarInstalacion('${r.id}','${safeName}','${r.hw_id || ''}')">🗑️ Eliminar</button>
     </div>`;
   }
 
@@ -1707,25 +1637,30 @@ setInterval(() => {
 // GESTOR DE SESIÓN — PUNTO DE ENTRADA ÚNICO
 // ==========================================
 
+async function checkSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    await initApp(session.user);
+  } else {
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
+}
+
 sb.auth.onAuthStateChange(async (event, session) => {
   console.log('[auth] event:', event, '| user:', session?.user?.email || 'none');
 
-  if (['INITIAL_SESSION', 'SIGNED_IN', 'TOKEN_REFRESHED'].includes(event)) {
-    if (session?.user) {
-      if (!appInitialized) {
-        await initApp(session.user);
-      }
-    } else if (event === 'INITIAL_SESSION') {
-      // Sin sesión al cargar la página → mostrar login
-      showAuthScreen();
-    }
+  if (event === 'SIGNED_IN' && session?.user) {
+    await initApp(session.user);
   }
 
   if (event === 'SIGNED_OUT') {
-    appInitialized = false;
     currentUser = null;
     currentProfile = null;
-    showAuthScreen();
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    const btn = document.querySelector('.btn-primary');
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
   }
 });
 
@@ -1788,6 +1723,8 @@ async function runDiagnosis(serverId) {
 }
 
 document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+checkSession();
 </script>
 </body>
 </html>
