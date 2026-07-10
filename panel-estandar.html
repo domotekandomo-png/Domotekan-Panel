@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Domotekan">
+<meta name="theme-color" content="#E3A03D">
+<link rel="apple-touch-icon" href="/logo.png">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="manifest" href="/manifest.json">
+<title>Domotekan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --green:#E3A03D;--gl:#FBF0DC;--gd:#92600E;
+  --red:#EF4444;
+  --bg:#F2F2F7;--sf:#FFFFFF;--s2:#F8F8FA;
+  --bd:rgba(0,0,0,0.06);--bs:rgba(0,0,0,0.10);
+  --tx:#1A1A1A;--t2:#636366;--t3:#AEAEB2;
+  --r:16px;--rs:10px;
+  --sh:0 2px 8px rgba(0,0,0,0.06),0 0 0 0.5px rgba(0,0,0,0.04);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;-webkit-font-smoothing:antialiased}
+body{height:100%;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── AUTH / PICKER OVERLAY ── */
+.auth-ov{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.auth-card{background:var(--sf);border:0.5px solid var(--bs);border-radius:20px;box-shadow:0 4px 24px rgba(0,0,0,.10);padding:28px 24px;width:100%;max-width:360px}
+.auth-logo{width:52px;height:52px;border-radius:14px;overflow:hidden;margin:0 auto 16px}
+.auth-logo img{width:100%;height:100%;object-fit:contain;display:block}
+.auth-title{font-size:20px;font-weight:600;text-align:center;margin-bottom:4px}
+.auth-sub{font-size:13px;color:var(--t2);text-align:center;margin-bottom:24px}
+.auth-field{margin-bottom:12px}
+.auth-field label{display:block;font-size:12px;font-weight:500;color:var(--t2);margin-bottom:5px}
+.auth-field input{width:100%;height:44px;border:0.5px solid var(--bs);border-radius:10px;padding:0 12px;font-size:14px;font-family:inherit;background:var(--s2);color:var(--tx);outline:none;transition:border-color .15s}
+.auth-field input:focus{border-color:var(--green);background:#fff}
+.auth-btn{width:100%;height:50px;border:none;border-radius:14px;background:var(--green);color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:8px;transition:opacity .15s}
+.auth-btn:active,.auth-btn:disabled{opacity:.7}
+.auth-btn:disabled{cursor:not-allowed}
+.auth-choose{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.auth-cbtn{width:100%;height:50px;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.auth-cbtn:active{opacity:.8}
+.auth-cbtn.p{background:var(--green);color:#fff;border:none}
+.auth-cbtn.s{background:var(--s2);color:var(--tx);border:0.5px solid var(--bs)}
+.auth-link{text-align:center;margin-top:14px;font-size:13px;color:var(--t2)}
+.auth-link button{background:none;border:none;color:var(--gd);font-weight:600;cursor:pointer;font-family:inherit;font-size:13px;padding:0}
+.auth-msg{font-size:12px;text-align:center;margin-top:8px;min-height:16px}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:38px}
+.pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px;padding:4px;line-height:1}
+
+/* picker item */
+.picker-item{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--s2);border:0.5px solid var(--bs);border-radius:var(--rs);cursor:pointer;margin-bottom:8px;transition:border-color .15s,background .15s}
+.picker-item:hover{border-color:var(--green);background:var(--gl)}
+.picker-item-name{font-size:14px;font-weight:600}
+.picker-item-id{font-size:11px;color:var(--t3);margin-top:2px}
+
+/* ── LOADING ── */
+#loading{display:none;position:fixed;inset:0;background:rgba(242,242,247,.85);align-items:center;justify-content:center;z-index:500;gap:10px;font-size:13px;color:var(--t2)}
+.spin{width:22px;height:22px;border:2.5px solid var(--bs);border-top-color:var(--green);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── HEADER ── */
+header{background:var(--sf);border-bottom:0.5px solid var(--bs);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--sh);flex-shrink:0}
+.hl{display:flex;align-items:center;gap:10px}
+.logo-wrap{width:36px;height:36px;border-radius:10px;overflow:hidden;flex-shrink:0}
+.logo-wrap img{width:100%;height:100%;object-fit:contain;display:block}
+.ht{font-size:15px;font-weight:600}
+.hs{font-size:11px;color:var(--t3)}
+.hr{display:flex;gap:8px;align-items:center}
+.stat{background:var(--s2);border:0.5px solid var(--bs);border-radius:100px;padding:4px 10px;font-size:12px;color:var(--t2);display:flex;align-items:center;gap:5px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--t3);flex-shrink:0;transition:background .4s}
+.dot.live{background:var(--green)}
+.logout-btn{width:32px;height:32px;border:none;background:var(--s2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t3);flex-shrink:0;transition:background .15s}
+.logout-btn:active{background:var(--bd)}
+.logout-btn svg{width:16px;height:16px;display:block}
+
+/* ── ROOM NAV ── */
+.rnav{background:var(--bg);padding:8px 10px;display:flex;gap:5px;overflow-x:auto;border-bottom:0.5px solid var(--bs);flex-shrink:0;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.rnav::-webkit-scrollbar{display:none}
+.rb{height:44px;padding:0 14px;background:var(--sf);border:none;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 0 0 0.5px rgba(0,0,0,.06);display:flex;align-items:center;gap:6px;font-family:inherit;font-size:13px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .18s;white-space:nowrap;flex-shrink:0}
+.rb:active{transform:scale(.95)}
+.rb.active{background:var(--green);color:#fff;font-weight:600;box-shadow:0 3px 10px rgba(227,160,61,.35)}
+.rb svg{width:16px;height:16px;flex-shrink:0}
+.rb.active svg{stroke:#fff}
+
+/* ── MAIN ── */
+main{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
+.no-area{text-align:center;padding:48px 16px;color:var(--t3);font-size:13px}
+
+/* ── TILES ── */
+.tg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:9px}
+.tile{background:var(--sf);border:0.5px solid var(--bs);border-radius:var(--r);box-shadow:var(--sh);padding:14px;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;flex-direction:column;gap:10px;min-height:98px;transition:transform .1s,background .2s,border-color .2s;animation:up .2s ease both}
+.tile:active{transform:scale(.96)}
+.tile.on{background:var(--gl);border-color:rgba(227,160,61,.5)}
+.tile.no-tap{cursor:default}
+.tile.no-tap:active{transform:none}
+.tile .ico{width:34px;height:34px;border-radius:10px;background:var(--s2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s,color .2s;color:var(--t2)}
+.tile .ico svg{width:20px;height:20px;display:block}
+.tile.on .ico{background:var(--green);color:#fff}
+.tinfo{min-width:0}
+.tn{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ts{font-size:11px;color:var(--t3);margin-top:1px}
+.tile.on .ts{color:var(--gd)}
+.th{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+
+/* toggle */
+.tog{position:relative;width:36px;height:20px;display:block;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0;position:absolute}
+.tt{position:absolute;inset:0;background:rgba(0,0,0,.13);border-radius:10px;cursor:pointer;transition:background .2s}
+.tt::before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.22);transition:transform .2s cubic-bezier(.35,0,.25,1)}
+.tog input:checked~.tt{background:var(--green)}
+.tog input:checked~.tt::before{transform:translateX(16px)}
+
+/* sensor val */
+.sensor-val{font-size:20px;font-weight:600;color:var(--green)}
+.sensor-unit{font-size:11px;color:var(--t3);font-weight:400;margin-left:1px}
+
+/* cover */
+.cover-btns{display:flex;gap:5px}
+.cvbtn{flex:1;padding:6px 4px;background:var(--s2);border:0.5px solid var(--bs);color:var(--t2);border-radius:6px;font-size:14px;cursor:pointer;text-align:center;font-family:inherit;transition:background .15s}
+.cvbtn:active{background:var(--gl);color:var(--gd)}
+
+/* climate */
+.throw{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px}
+.tnow{font-size:15px;font-weight:300;color:var(--t2)}
+.tadj{display:flex;align-items:center;gap:4px}
+.adjb{width:22px;height:22px;border-radius:50%;border:0.5px solid var(--bs);background:var(--sf);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--t2);user-select:none;font-family:inherit;transition:background .15s;flex-shrink:0}
+.adjb:active{background:var(--gl);color:var(--gd)}
+.tval{font-size:12px;font-weight:600;min-width:34px;text-align:center;color:var(--t2)}
+
+@keyframes up{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── SHEET ── */
+.sheet-ov{position:fixed;inset:0;background:rgba(0,0,0,.32);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s;z-index:300}
+.sheet-ov.open{opacity:1;pointer-events:auto}
+.sheet{background:var(--sf);border-radius:20px 20px 0 0;width:100%;max-width:420px;padding:10px 18px 32px;transform:translateY(100%);transition:transform .22s cubic-bezier(.32,.72,0,1);box-shadow:0 -4px 24px rgba(0,0,0,.18)}
+.sheet-ov.open .sheet{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(--bs);border-radius:3px;margin:0 auto 16px}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:8px}
+.sht{font-size:15px;font-weight:600}
+.shs{font-size:11px;color:var(--t3);margin-top:1px}
+.sheet-pwr{width:44px;height:44px;border-radius:50%;border:none;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--bg);color:var(--t2);transition:background .2s}
+.sheet-pwr svg{width:20px;height:20px}
+.sheet-pwr.on{background:var(--green);color:#fff}
+.sr{margin:10px 0}
+.sl-row{display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:5px}
+.sl-row span{font-weight:500;color:var(--t2)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:3px;cursor:pointer;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:white;border:1.5px solid rgba(0,0,0,.2);box-shadow:0 1px 4px rgba(0,0,0,.22);cursor:pointer}
+.br-track{background:linear-gradient(to right,#1A1A1A,#FFF5D0)}
+.ct-track{background:linear-gradient(to right,#FFCD7A,#FFF8F0,#CCE4FF)}
+.crow{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.sw{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s;flex-shrink:0}
+.sw:hover{transform:scale(1.15)}
+.sw.ac{border-color:var(--tx)}
+.swc{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--bs);cursor:pointer;overflow:hidden;position:relative;flex-shrink:0;background:conic-gradient(red,yellow,lime,aqua,blue,magenta,red)}
+.swc input[type=color]{position:absolute;inset:-4px;opacity:.01;cursor:pointer;width:200%;height:200%}
+</style>
+</head>
+<body>
+
+<!-- ═══ AUTH OVERLAY ═══ -->
+<div class="auth-ov" id="auth-ov">
+
+  <!-- Pantalla 1: Elegir -->
+  <div id="auth-choose" class="auth-card">
+    <div class="auth-logo"><img src="/logo.png" alt="Domotekan"></div>
+    <div class="auth-title">Bienvenido</div>
+    <div class="auth-sub">Panel de control · Domotekan</div>
+    <div class="auth-choose">
+      <button class="auth-cbtn p" onclick="showAuthScreen('login')">Sí, tengo cuenta</button>
+      <button class="auth-cbtn s" onclick="showAuthScreen('register')">No, registrarme</button>
+    </div>
+  </div>
+
+  <!-- Pantalla 2: Login -->
+  <div id="auth-login" class="auth-card" style="display:none">
+    <div class="auth-logo"><img src="/logo.png" alt="Domotekan"></div>
+    <div class="auth-title">Acceder</div>
+    <div class="auth-sub">Introduce tus datos</div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="l-email" placeholder="tu@email.com" autocomplete="email"
+             onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()">
+    </div>
+    <div class="auth-field">
+      <label>Contraseña</label>
+      <div class="pw-wrap">
+        <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter')doLogin()">
+        <button type="button" class="pw-eye" onclick="togglePw('l-pass',this)">👁</button>
+      </div>
+    </div>
+    <div class="auth-msg" id="log-msg"></div>
+    <button class="auth-btn" id="log-btn" onclick="doLogin()">Entrar</button>
+    <div class="auth-link">
+      <button onclick="doForgot()">¿Olvidaste tu contraseña?</button>
+      &nbsp;·&nbsp;
+      <button onclick="showAuthScreen('register')">Crear cuenta</button>
+    </div>
+  </div>
+
+  <!-- Pantalla 3: Registro -->
+  <div id="auth-register" class="auth-card" style="display:none">
+    <div class="auth-logo"><img src="/logo.png" alt="Domotekan"></div>
+    <div class="auth-title">Crear cuenta</div>
+    <div class="auth-sub">Necesitas el código de tu instalación</div>
+    <div class="auth-field">
+      <label>Código de instalación</label>
+      <input type="text" id="hw-id" placeholder="ASIER-TXOPO-0001" autocomplete="off" spellcheck="false"
+             onkeydown="if(event.key==='Enter')document.getElementById('r-name').focus()">
+    </div>
+    <div class="auth-field">
+      <label>Tu nombre</label>
+      <input type="text" id="r-name" placeholder="Nombre" autocomplete="name"
+             onkeydown="if(event.key==='Enter')document.getElementById('r-email').focus()">
+    </div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="r-email" placeholder="tu@email.com" autocomplete="email"
+             onkeydown="if(event.key==='Enter')document.getElementById('r-pass').focus()">
+    </div>
+    <div class="auth-field">
+      <label>Contraseña</label>
+      <div class="pw-wrap">
+        <input type="password" id="r-pass" placeholder="••••••••" autocomplete="new-password"
+               onkeydown="if(event.key==='Enter')doRegister()">
+        <button type="button" class="pw-eye" onclick="togglePw('r-pass',this)">👁</button>
+      </div>
+    </div>
+    <div class="auth-msg" id="reg-msg"></div>
+    <button class="auth-btn" id="reg-btn" onclick="doRegister()">Registrarme</button>
+    <div class="auth-link"><button onclick="showAuthScreen('login')">Ya tengo cuenta</button></div>
+  </div>
+
+  <!-- Pantalla 4: Recovery -->
+  <div id="auth-recovery" class="auth-card" style="display:none">
+    <div class="auth-logo"><img src="/logo.png" alt="Domotekan"></div>
+    <div class="auth-title">Nueva contraseña</div>
+    <div class="auth-sub">Elige una nueva contraseña</div>
+    <div class="auth-field">
+      <label>Nueva contraseña</label>
+      <div class="pw-wrap">
+        <input type="password" id="new-pass" placeholder="••••••••" autocomplete="new-password"
+               onkeydown="if(event.key==='Enter')doResetPassword()">
+        <button type="button" class="pw-eye" onclick="togglePw('new-pass',this)">👁</button>
+      </div>
+    </div>
+    <div class="auth-msg" id="rec-msg"></div>
+    <button class="auth-btn" onclick="doResetPassword()">Guardar contraseña</button>
+  </div>
+
+</div>
+
+<!-- ═══ PICKER (selector de vivienda) ═══ -->
+<div class="auth-ov" id="picker-ov" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo"><img src="/logo.png" alt="Domotekan"></div>
+    <div class="auth-title" id="picker-title">Tu vivienda</div>
+    <div id="picker-list"></div>
+    <div id="picker-manual" style="display:none">
+      <div class="auth-field" style="margin-top:4px">
+        <label>Código de instalación</label>
+        <input type="text" id="picker-hw-id" placeholder="ASIER-TXOPO-0001" autocomplete="off" spellcheck="false"
+               onkeydown="if(event.key==='Enter')selectVivienda(document.getElementById('picker-hw-id').value)">
+      </div>
+      <button class="auth-btn" onclick="selectVivienda(document.getElementById('picker-hw-id').value)">Acceder</button>
+    </div>
+    <div class="auth-msg" id="picker-msg"></div>
+    <button class="auth-cbtn s" style="margin-top:10px" onclick="doLogout()">Cerrar sesión</button>
+  </div>
+</div>
+
+<!-- ═══ LOADING ═══ -->
+<div id="loading"><div class="spin"></div>Conectando…</div>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="hl">
+    <div class="logo-wrap"><img src="/logo.png" alt="Domotekan"></div>
+    <div>
+      <div class="ht" id="client-name">Domotekan</div>
+      <div class="hs" id="hw-label">—</div>
+    </div>
+  </div>
+  <div class="hr">
+    <div class="stat"><div class="dot" id="sdot"></div>&nbsp;<span id="status-txt">—</span></div>
+    <button class="logout-btn" onclick="doLogout()" title="Salir">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 15l3-5-3-5"/><path d="M16 10H7"/><path d="M7 19H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h3"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- ═══ ROOM NAV ═══ -->
+<nav class="rnav" id="rnav"></nav>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<main id="main"><div class="no-area">Selecciona una estancia</div></main>
+
+<!-- ═══ SHEET (brillo / color) ═══ -->
+<div class="sheet-ov" id="sheet-ov" onclick="closeSheet(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div><div class="sht" id="sheet-title">—</div><div class="shs" id="sheet-sub">—</div></div>
+      <button class="sheet-pwr" id="sheet-pwr" onclick="sheetToggle()">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 2v5"/><path d="M6.3 4.3a7 7 0 1 0 7.4 0"/>
+        </svg>
+      </button>
+    </div>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<script>
+const SB_URL  = 'https://xsidbxnrtvjgjhoscyqp.supabase.co';
+const SB_KEY  = 'sb_publishable__k8db4ohZo7ldZt30dpwkA_0nyQuD3F';
+const API_URL = 'https://panel-gestion.domotekan.com';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+const SF_BRIGHTNESS = 1, SF_COLOR_TEMP = 2, SF_COLOR = 16;
+let S = { session: null, hwId: '', areas: [], activeAreaId: null, timer: null, debounceTimers: {} };
+let sheetEntityId = null, sheetOn = false;
+let holdTimer = null, holdActive = false;
+
+// ── SVG ICONS ──────────────────────────────────────────────────────────────────
+const I = {
+  light:  `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5a5.5 5.5 0 0 0-3 10.1c.5.35.8.95.8 1.6v.3h4.4v-.3c0-.65.3-1.25.8-1.6A5.5 5.5 0 0 0 10 2.5z"/><path d="M8.3 17h3.4M8.8 19h2.4"/></svg>`,
+  switch: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v4M13 2v4M5 6h10v2a5 5 0 0 1-10 0V6z"/><path d="M10 13v5"/></svg>`,
+  fan:    `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2"/><path d="M10 2c0 4 4 4 4 8M10 2c0 4-4 4-4 8M18 10c-4 0-4 4-8 4M18 10c-4 0-4-4-8-4M10 18c0-4-4-4-4-8M10 18c0-4 4-4 4-8M2 10c4 0 4-4 8-4M2 10c4 0 4 4 8 4"/></svg>`,
+  cover:  `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="16" height="3" rx="1"/><path d="M4 5v11M16 5v11M4 12h12"/></svg>`,
+  thermo: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v9.5"/><circle cx="10" cy="14" r="2.5"/><path d="M8.5 4.5h3"/></svg>`,
+  sensor: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="3"/><path d="M10 3v2M10 15v2M3 10h2M15 10h2"/></svg>`,
+  door:   `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="10" height="18" rx="1.5"/><circle cx="12.5" cy="10" r="0.9" fill="currentColor" stroke="none"/></svg>`,
+  motion: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="5" r="2"/><path d="M7 8h6l1 7H6l1-7z"/></svg>`,
+  water:  `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2L5 9a5 5 0 1 0 10 0L10 2z"/></svg>`,
+  room:   `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/><path d="M7 19v-7h6v7"/></svg>`,
+};
+
+// ── AUTH UI ───────────────────────────────────────────────────────────────────
+
+function showAuthScreen(name) {
+  ['choose','login','register','recovery'].forEach(s =>
+    document.getElementById('auth-' + s).style.display = s === name ? '' : 'none'
+  );
+  document.getElementById('auth-ov').style.display = 'flex';
+  document.getElementById('picker-ov').style.display = 'none';
+  clearMsg();
+  if (name === 'login')    setTimeout(() => document.getElementById('l-email').focus(), 80);
+  if (name === 'register') setTimeout(() => document.getElementById('hw-id').focus(), 80);
+}
+
+function showAuthChoose() { showAuthScreen('choose'); }
+
+function clearMsg() {
+  ['log-msg','reg-msg','rec-msg','picker-msg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  });
+}
+
+function setMsg(id, msg, ok) {
+  const el = document.getElementById(id + '-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok ? 'var(--green)' : 'var(--red)';
+}
+
+function setLoading(show) {
+  document.getElementById('loading').style.display = show ? 'flex' : 'none';
+}
+
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+// ── AUTH LOGIC ────────────────────────────────────────────────────────────────
+
+async function doLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  setMsg('log', '');
+  if (!email) return setMsg('log', 'El email es obligatorio.');
+  if (!pass)  return setMsg('log', 'La contraseña es obligatoria.');
+
+  const btn = document.getElementById('log-btn');
+  btn.disabled = true; setLoading(true);
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  setLoading(false); btn.disabled = false;
+
+  if (error || !data.session) return setMsg('log', error?.message || 'Email o contraseña incorrectos.');
+
+  S.session = data.session;
+  const savedHw   = localStorage.getItem('dmt_hw');
+  const pendingHw = localStorage.getItem('dmt_pending_hw');
+
+  if (savedHw) {
+    S.hwId = savedHw;
+    document.getElementById('auth-ov').style.display = 'none';
+    setLoading(true);
+    await initPanel();
+    return;
+  }
+
+  // Usuario que confirmó email tras registrarse: vincular automáticamente
+  if (pendingHw) {
+    localStorage.removeItem('dmt_pending_hw');
+    document.getElementById('auth-ov').style.display = 'none';
+    await selectVivienda(pendingHw);
+    return;
+  }
+
+  const installs = await loadUserInstallations(email);
+  if (installs.length === 1) {
+    document.getElementById('auth-ov').style.display = 'none';
+    await selectVivienda(installs[0].hw_id);
+    return;
+  }
+  showPicker(installs);
+}
+
+async function doRegister() {
+  const hwId  = document.getElementById('hw-id').value.trim().toUpperCase();
+  const name  = document.getElementById('r-name').value.trim();
+  const email = document.getElementById('r-email').value.trim();
+  const pass  = document.getElementById('r-pass').value;
+  setMsg('reg', '');
+
+  if (!hwId)           return setMsg('reg', 'Introduce el código de instalación.');
+  if (!name)           return setMsg('reg', 'El nombre es obligatorio.');
+  if (!email)          return setMsg('reg', 'El email es obligatorio.');
+  if (pass.length < 6) return setMsg('reg', 'Mínimo 6 caracteres en la contraseña.');
+
+  const btn = document.getElementById('reg-btn');
+  btn.disabled = true; setLoading(true);
+  const { data, error } = await sb.auth.signUp({
+    email, password: pass,
+    options: { data: { nombre: name, hw_id: hwId } }
+  });
+  setLoading(false);
+
+  if (error) { btn.disabled = false; return setMsg('reg', error.message); }
+
+  if (data.session) {
+    S.session = data.session;
+    S.hwId    = hwId;
+    localStorage.setItem('dmt_hw', hwId);
+
+    try {
+      const regRes = await fetch(`${API_URL}/api/ha-proxy`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auth_token: data.session.access_token, hw_id: hwId, action: 'register_user', payload: { nombre: name } })
+      });
+      if (!regRes.ok) {
+        const e = await regRes.json().catch(() => ({}));
+        console.error('[doRegister] register_user failed', regRes.status, e);
+        btn.disabled = false; localStorage.removeItem('dmt_hw');
+        return setMsg('reg', e.error || 'No se pudo vincular la instalación. Verifica el código.');
+      }
+    } catch (err) {
+      console.error('[doRegister] network error', err);
+      btn.disabled = false; localStorage.removeItem('dmt_hw');
+      return setMsg('reg', 'Error de conexión. Comprueba tu red.');
+    }
+
+    btn.disabled = false;
+    document.getElementById('auth-ov').style.display = 'none';
+    await initPanel();
+  } else {
+    btn.disabled = false;
+    localStorage.setItem('dmt_pending_hw', hwId);
+    setMsg('reg', 'Cuenta creada. Revisa tu email para confirmar y luego accede.', true);
+  }
+}
+
+async function doForgot() {
+  const email = document.getElementById('l-email').value.trim();
+  if (!email) return setMsg('log', 'Introduce tu email primero.');
+  setLoading(true);
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
+  setLoading(false);
+  error ? setMsg('log', error.message) : setMsg('log', 'Email enviado. Revisa tu bandeja.', true);
+}
+
+async function doResetPassword() {
+  const pass = document.getElementById('new-pass').value;
+  if (pass.length < 6) return setMsg('rec', 'Mínimo 6 caracteres.');
+  setLoading(true);
+  const { error } = await sb.auth.updateUser({ password: pass });
+  setLoading(false);
+  if (error) return setMsg('rec', error.message);
+  setMsg('rec', 'Contraseña actualizada. Entrando…', true);
+  setTimeout(() => location.reload(), 2000);
+}
+
+async function doLogout() {
+  clearInterval(S.timer);
+  await sb.auth.signOut();
+  localStorage.removeItem('dmt_hw');
+  S = { session: null, hwId: '', areas: [], activeAreaId: null, timer: null, debounceTimers: {} };
+  setLoading(false);
+  setOnline(false);
+  showAuthChoose();
+}
+
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    document.getElementById('picker-ov').style.display = 'none';
+    showAuthScreen('recovery');
+  }
+});
+
+// ── MULTI-VIVIENDA ────────────────────────────────────────────────────────────
+
+async function loadUserInstallations(email) {
+  try {
+    const { data } = await sb.from('instalacion_usuarios').select('hw_id, nombre').eq('email', email.toLowerCase());
+    return data || [];
+  } catch (_) { return []; }
+}
+
+function showPicker(installs) {
+  document.getElementById('auth-ov').style.display   = 'none';
+  document.getElementById('picker-ov').style.display = 'flex';
+  const list   = document.getElementById('picker-list');
+  const manual = document.getElementById('picker-manual');
+  const title  = document.getElementById('picker-title');
+  setMsg('picker', '');
+
+  if (!installs || !installs.length) {
+    title.textContent = 'Vincula tu vivienda';
+    list.innerHTML = '<p style="font-size:13px;color:var(--t3);text-align:center;margin-bottom:14px">Introduce el código de instalación de tu vivienda.</p>';
+    manual.style.display = '';
+  } else {
+    title.textContent = 'Selecciona tu vivienda';
+    const names = JSON.parse(localStorage.getItem('dmt_hw_names') || '{}');
+    list.innerHTML = installs.map(i => {
+      const label = names[i.hw_id] || i.nombre || i.hw_id;
+      return `<div class="picker-item" onclick="selectVivienda('${i.hw_id}')">
+        <div><div class="picker-item-name">${label}</div><div class="picker-item-id">${i.hw_id}</div></div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>`;
+    }).join('');
+    manual.style.display = 'none';
+  }
+}
+
+async function selectVivienda(hwId) {
+  if (!hwId?.trim()) { setMsg('picker', 'Introduce el código de instalación.'); return; }
+  S.hwId = hwId.trim().toUpperCase();
+  localStorage.setItem('dmt_hw', S.hwId);
+  document.getElementById('picker-ov').style.display = 'none';
+  setLoading(true);
+
+  try {
+    const regRes = await fetch(`${API_URL}/api/ha-proxy`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auth_token: S.session.access_token, hw_id: S.hwId, action: 'register_user', payload: { nombre: '' } })
+    });
+    if (!regRes.ok) {
+      const e = await regRes.json().catch(() => ({}));
+      setLoading(false); localStorage.removeItem('dmt_hw'); S.hwId = '';
+      showPicker([]); setMsg('picker', e.error || 'Error al vincular la instalación.');
+      return;
+    }
+  } catch (_) { /* error de red — intentar igualmente */ }
+
+  await initPanel();
+}
+
+// ── DATA ──────────────────────────────────────────────────────────────────────
+
+async function fetchData() {
+  let res;
+  try {
+    res = await fetch(`${API_URL}/api/ha-proxy`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auth_token: S.session.access_token, hw_id: S.hwId, action: 'load_home' })
+    });
+  } catch (_) { throw new Error('Sin conexión. Comprueba tu red.'); }
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `Error ${res.status}`); }
+  return res.json();
+}
+
+async function callService(domain, service, entity_id, svcData = {}) {
+  setOnline(false);
+  try {
+    const res = await fetch(`${API_URL}/api/ha-proxy`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auth_token: S.session.access_token, hw_id: S.hwId,
+                             action: 'call_service', payload: { domain, service, entity_id, service_data: svcData } })
+    });
+    if (res.ok) setOnline(true);
+  } catch (_) { setOnline(false); }
+  setTimeout(refresh, 1800);
+}
+
+// ── PANEL INIT ────────────────────────────────────────────────────────────────
+
+async function initPanel() {
+  try {
+    const data = await fetchData();
+    S.areas = data.areas || [];
+
+    document.getElementById('client-name').textContent = data.server_name || 'Mi vivienda';
+    document.getElementById('hw-label').textContent    = S.hwId;
+
+    const names = JSON.parse(localStorage.getItem('dmt_hw_names') || '{}');
+    if (data.server_name) { names[S.hwId] = data.server_name; localStorage.setItem('dmt_hw_names', JSON.stringify(names)); }
+
+    renderNav();
+    if (S.areas.length) selectArea(S.areas[0].id);
+
+    setOnline(true);
+    S.timer = setInterval(refresh, 8000);
+  } catch (e) {
+    localStorage.removeItem('dmt_hw'); S.hwId = '';
+    setLoading(false);
+    showAuthScreen('login');
+    setMsg('log', e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function refresh() {
+  try { const data = await fetchData(); S.areas = data.areas || []; renderArea(S.activeAreaId); setOnline(true); }
+  catch (_) { setOnline(false); }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+
+function renderNav() {
+  const nav = document.getElementById('rnav');
+  nav.innerHTML = '';
+  S.areas.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'rb';
+    btn.dataset.id = a.id;
+    btn.innerHTML = I.room + `<span>${a.name}</span>`;
+    btn.onclick = () => selectArea(a.id);
+    nav.appendChild(btn);
+  });
+}
+
+function selectArea(id) {
+  S.activeAreaId = id;
+  document.querySelectorAll('#rnav .rb').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+  renderArea(id);
+}
+
+function renderArea(id) {
+  const area = S.areas.find(a => a.id === id);
+  const main = document.getElementById('main');
+  if (!area?.entities?.length) { main.innerHTML = '<div class="no-area">Sin dispositivos en esta estancia</div>'; return; }
+  main.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'tg';
+  area.entities.forEach(e => { const t = buildTile(e); if (t) grid.appendChild(t); });
+  main.appendChild(grid);
+}
+
+// ── TILES ─────────────────────────────────────────────────────────────────────
+
+function buildTile(e) {
+  if (e.domain === 'light')         return buildLightTile(e);
+  if (e.domain === 'cover')         return buildCoverTile(e);
+  if (e.domain === 'climate')       return buildClimateTile(e);
+  if (e.domain === 'sensor')        return buildSensorTile(e);
+  if (e.domain === 'binary_sensor') return buildBinarySensorTile(e);
+  return buildToggleTile(e);
+}
+
+function buildLightTile(e) {
+  const on  = e.state === 'on';
+  const sf  = e.supported_features || 0;
+  const hasBri = !!(sf & SF_BRIGHTNESS) || e.brightness != null;
+  const hasCT  = !!(sf & SF_COLOR_TEMP);
+  const hasRGB = !!(sf & SF_COLOR);
+  const hasCtrls = hasBri || hasCT || hasRGB;
+  const eid = esc(e.entity_id);
+
+  const tile = mk('div', `tile${on ? ' on' : ''}`, `tile-${eid}`);
+  tile.innerHTML = `
+    <div class="th">
+      <div class="ico" id="ico-${eid}">${I.light}</div>
+      <label class="tog"><input type="checkbox" ${on ? 'checked' : ''} onchange="toggleEnt('${e.entity_id}','light',this.checked,'${eid}')"><div class="tt"></div></label>
+    </div>
+    <div class="tinfo">
+      <div class="tn" title="${e.name}">${e.name}</div>
+      <div class="ts" id="ts-${eid}">${on ? 'Encendida' : 'Apagada'}</div>
+    </div>`;
+
+  if (hasCtrls) {
+    tile.addEventListener('pointerdown', ev => {
+      if (ev.target.closest('.tog')) return;
+      holdActive = false;
+      holdTimer = setTimeout(() => { holdActive = true; openSheet(e, hasBri, hasCT, hasRGB); }, 480);
+    });
+    tile.addEventListener('pointerup',    () => clearTimeout(holdTimer));
+    tile.addEventListener('pointerleave', () => clearTimeout(holdTimer));
+  }
+  tile.addEventListener('click', ev => {
+    if (ev.target.closest('.tog') || holdActive) return;
+    const cb = tile.querySelector('input'); if (cb) { cb.checked = !cb.checked; toggleEnt(e.entity_id, 'light', cb.checked, eid); }
+  });
+  return tile;
+}
+
+function buildToggleTile(e) {
+  const on = e.state === 'on';
+  const eid = esc(e.entity_id);
+  const icon = e.domain === 'fan' ? I.fan : I.switch;
+  const tile = mk('div', `tile${on ? ' on' : ''}`, `tile-${eid}`);
+  tile.innerHTML = `
+    <div class="th">
+      <div class="ico" id="ico-${eid}">${icon}</div>
+      <label class="tog"><input type="checkbox" ${on ? 'checked' : ''} onchange="toggleEnt('${e.entity_id}','${e.domain}',this.checked,'${eid}')"><div class="tt"></div></label>
+    </div>
+    <div class="tinfo">
+      <div class="tn" title="${e.name}">${e.name}</div>
+      <div class="ts" id="ts-${eid}">${on ? 'Encendido' : 'Apagado'}</div>
+    </div>`;
+  tile.addEventListener('click', ev => {
+    if (ev.target.closest('.tog')) return;
+    const cb = tile.querySelector('input'); if (cb) { cb.checked = !cb.checked; toggleEnt(e.entity_id, e.domain, cb.checked, eid); }
+  });
+  return tile;
+}
+
+function buildCoverTile(e) {
+  const eid = esc(e.entity_id);
+  const lbl = { open:'Abierta', closed:'Cerrada', opening:'Subiendo…', closing:'Bajando…' };
+  const tile = mk('div', 'tile');
+  tile.innerHTML = `
+    <div class="ico">${I.cover}</div>
+    <div class="tinfo">
+      <div class="tn" title="${e.name}">${e.name}</div>
+      <div class="ts">${lbl[e.state] || e.state}</div>
+    </div>
+    <div class="cover-btns">
+      <button class="cvbtn" onclick="callService('cover','open_cover','${e.entity_id}')">▲</button>
+      <button class="cvbtn" onclick="callService('cover','stop_cover','${e.entity_id}')">■</button>
+      <button class="cvbtn" onclick="callService('cover','close_cover','${e.entity_id}')">▼</button>
+    </div>`;
+  return tile;
+}
+
+function buildSensorTile(e) {
+  const sIcon = { temperature: I.thermo, humidity: I.water, power: I.switch, illuminance: I.sensor }[e.device_class] || I.sensor;
+  const tile = mk('div', 'tile no-tap');
+  tile.innerHTML = `
+    <div class="ico">${sIcon}</div>
+    <div class="tinfo">
+      <div class="tn" title="${e.name}">${e.name}</div>
+      <div class="sensor-val">${e.state}<span class="sensor-unit">${e.unit || ''}</span></div>
+    </div>`;
+  return tile;
+}
+
+function buildBinarySensorTile(e) {
+  const active = e.state === 'on';
+  const sIcon = { motion: I.motion, door: I.door, window: I.door, moisture: I.water }[e.device_class] || I.sensor;
+  const tile = mk('div', 'tile no-tap');
+  tile.innerHTML = `
+    <div class="ico">${sIcon}</div>
+    <div class="tinfo">
+      <div class="tn" title="${e.name}">${e.name}</div>
+      <div class="ts" style="color:${active ? 'var(--green)' : 'var(--t3)'}">${active ? 'Activo' : 'Inactivo'}</div>
+    </div>`;
+  return tile;
+}
+
+function buildClimateTile(e) {
+  const eid    = esc(e.entity_id);
+  const isOn   = e.state !== 'off';
+  const target = parseFloat(e.temperature) || 20;
+  const cur    = e.current_temperature != null ? e.current_temperature + '°' : '—';
+  const tile   = mk('div', `tile${isOn ? ' on' : ''}`, `tile-${eid}`);
+  tile.innerHTML = `
+    <div class="th">
+      <div class="ico">${I.thermo}</div>
+      <label class="tog"><input type="checkbox" ${isOn ? 'checked' : ''} onchange="callService('climate',this.checked?'turn_on':'turn_off','${e.entity_id}')"><div class="tt"></div></label>
+    </div>
+    <div class="tinfo"><div class="tn" title="${e.name}">${e.name}</div></div>
+    <div class="throw">
+      <span class="tnow">${cur}</span>
+      <div class="tadj">
+        <button class="adjb" onclick="adjTemp('${e.entity_id}','${eid}',${target},-0.5)">−</button>
+        <span class="tval" id="tv-${eid}">${target.toFixed(1)}°</span>
+        <button class="adjb" onclick="adjTemp('${e.entity_id}','${eid}',${target},+0.5)">+</button>
+      </div>
+    </div>`;
+  return tile;
+}
+
+// ── ENTITY ACTIONS ────────────────────────────────────────────────────────────
+
+function toggleEnt(entityId, domain, on, eid) {
+  callService(domain, on ? 'turn_on' : 'turn_off', entityId);
+  const tile = document.getElementById('tile-' + eid);
+  const ts   = document.getElementById('ts-' + eid);
+  if (tile) tile.classList.toggle('on', on);
+  if (ts) ts.textContent = on ? 'Encendida' : 'Apagada';
+}
+
+function adjTemp(entityId, eid, cur, delta) {
+  const newT = Math.round((parseFloat(cur) + delta) * 2) / 2;
+  const el = document.getElementById('tv-' + eid);
+  if (el) el.textContent = newT.toFixed(1) + '°';
+  debounce(entityId + '_t', () => callService('climate', 'set_temperature', entityId, { temperature: newT }), 500);
+}
+
+// ── SHEET ─────────────────────────────────────────────────────────────────────
+
+function openSheet(e, hasBri, hasCT, hasRGB) {
+  sheetEntityId = e.entity_id;
+  sheetOn       = e.state === 'on';
+  const bri = e.brightness != null ? Math.round(e.brightness / 2.55) : 100;
+
+  document.getElementById('sheet-title').textContent = e.name;
+  document.getElementById('sheet-sub').textContent   = sheetOn ? 'Encendida' : 'Apagada';
+  document.getElementById('sheet-pwr').className     = 'sheet-pwr' + (sheetOn ? ' on' : '');
+
+  let html = '';
+  if (hasBri) {
+    html += `<div class="sr">
+      <div class="sl-row">Brillo <span id="sl-br">${bri}%</span></div>
+      <input type="range" class="br-track" min=1 max=100 value="${bri}"
+        oninput="document.getElementById('sl-br').textContent=this.value+'%'"
+        onchange="callService('light','turn_on','${e.entity_id}',{brightness:Math.round(this.value*2.55)})">
+    </div>`;
+  }
+  if (hasCT) {
+    html += `<div class="sr">
+      <div class="sl-row">Temperatura de color <span id="sl-ct">Cálida</span></div>
+      <input type="range" class="ct-track" min=153 max=500 value="350"
+        oninput="document.getElementById('sl-ct').textContent=this.value<250?'Fría':this.value>400?'Cálida':'Neutra'"
+        onchange="callService('light','turn_on','${e.entity_id}',{color_temp:parseInt(this.value)})">
+    </div>`;
+  }
+  if (hasRGB) {
+    const colors = ['#FFFDE7','#FFFFFF','#FF6B35','#E63946','#4A90D9','#7B2D8B','#2DC653'];
+    html += `<div class="sl-row" style="margin-top:12px">Color</div>
+    <div class="crow">
+      ${colors.map(c => `<div class="sw" style="background:${c}" onclick="setRgb('${e.entity_id}','${c}',this)"></div>`).join('')}
+      <div class="swc"><input type="color" value="#FFFDE7" onchange="const r=hexRgb(this.value);callService('light','turn_on','${e.entity_id}',{rgb_color:r})"></div>
+    </div>`;
+  }
+  document.getElementById('sheet-body').innerHTML = html;
+  document.getElementById('sheet-ov').classList.add('open');
+}
+
+function closeSheet(ev) {
+  if (ev.target === document.getElementById('sheet-ov'))
+    document.getElementById('sheet-ov').classList.remove('open');
+}
+
+function sheetToggle() {
+  if (!sheetEntityId) return;
+  sheetOn = !sheetOn;
+  callService('light', sheetOn ? 'turn_on' : 'turn_off', sheetEntityId);
+  document.getElementById('sheet-pwr').className = 'sheet-pwr' + (sheetOn ? ' on' : '');
+  document.getElementById('sheet-sub').textContent = sheetOn ? 'Encendida' : 'Apagada';
+}
+
+function setRgb(entityId, hex, el) {
+  el.closest('.crow').querySelectorAll('.sw').forEach(s => s.classList.remove('ac'));
+  el.classList.add('ac');
+  callService('light', 'turn_on', entityId, { rgb_color: hexRgb(hex) });
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+
+function mk(tag, cls, id) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  if (id)  el.id = id;
+  return el;
+}
+
+function esc(s) { return s.replace(/\W/g, '_'); }
+
+function debounce(key, fn, ms) {
+  clearTimeout(S.debounceTimers[key]);
+  S.debounceTimers[key] = setTimeout(fn, ms);
+}
+
+function hexRgb(hex) {
+  return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+}
+
+function setOnline(ok) {
+  const dot = document.getElementById('sdot');
+  const txt = document.getElementById('status-txt');
+  if (dot) dot.className = 'dot' + (ok ? ' live' : '');
+  if (txt) txt.textContent = ok ? 'Conectado' : 'Sin conexión';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+
+(async () => {
+  const urlHw = new URLSearchParams(location.search).get('hw_id');
+  if (urlHw) document.getElementById('hw-id').value = urlHw.toUpperCase();
+
+  const { data } = await sb.auth.getSession();
+  if (!data.session) return showAuthChoose();
+
+  S.session = data.session;
+  const savedHw = localStorage.getItem('dmt_hw');
+  if (savedHw) {
+    S.hwId = savedHw;
+    document.getElementById('auth-ov').style.display = 'none';
+    setLoading(true);
+    await initPanel();
+    return;
+  }
+
+  const email    = data.session.user.email;
+  const installs = await loadUserInstallations(email);
+  document.getElementById('auth-ov').style.display = 'none';
+  if (installs.length === 1) {
+    await selectVivienda(installs[0].hw_id);
+  } else {
+    showPicker(installs);
+  }
+})();
+</script>
+</body>
+</html>

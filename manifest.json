@@ -1,0 +1,16 @@
+{
+  "name": "Casa Ander · Domotekan",
+  "short_name": "Casa Ander",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "1280x1280",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/panel-ander.html",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#E3A03D"
+}
