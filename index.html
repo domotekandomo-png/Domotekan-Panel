@@ -4,15 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Domotekan — Panel</title>
+<link rel="icon" href="logo.png" type="image/png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --green: #1D9E75;
-  --green-light: #E1F5EE;
-  --green-dark: #0F6E56;
+  --green: #F59E0B;
+  --green-light: #FEF3C7;
+  --green-dark: #B45309;
   --red: #D85A30;
   --red-light: #FAECE7;
   --amber: #BA7517;
@@ -37,20 +38,28 @@ html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(-
 #auth-screen {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: var(--bg);
+  padding: 24px;
 }
+.auth-header {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  margin-bottom: 28px; text-align: center;
+}
+.auth-header img { width: 140px; height: 140px; object-fit: contain; }
+.auth-header-label { font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: var(--green); text-transform: uppercase; }
+.auth-header-title { font-size: 20px; font-weight: 700; color: var(--text); margin-top: 4px; }
 .auth-card {
   background: var(--surface);
   border: 0.5px solid var(--border-strong);
   border-radius: 16px;
-  padding: 40px;
-  width: 380px;
+  padding: 32px;
+  width: 100%; max-width: 380px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.07);
 }
-.auth-logo { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-.auth-logo span { color: var(--green); }
-.auth-sub { font-size: 13px; color: var(--text-2); margin-bottom: 32px; }
+.auth-intro { font-size: 13px; color: var(--text-2); text-align: center; margin-bottom: 24px; }
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
 .field input {
@@ -345,18 +354,22 @@ tbody tr:hover { background: var(--bg); }
 </head>
 <body>
 
-<div id="auth-screen">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <svg width="38" height="38" viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin-bottom:6px">
-        <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
-        <path d="M6.5 14a4 4 0 0 1 7 0"/>
-        <path d="M8.2 15.8a2 2 0 0 1 3.6 0"/>
-        <circle cx="10" cy="17.2" r="0.55" fill="var(--green)" stroke="none"/>
-      </svg>
-      Domo<span>tekan</span>
+<div id="loading-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);">
+  <div style="text-align:center">
+    <div style="width:28px;height:28px;border-radius:50%;border:3px solid var(--border-strong);border-top-color:var(--green);animation:spin 0.8s linear infinite;margin:0 auto 12px"></div>
+    <div style="font-size:13px;color:var(--text-3)">Verificando sesión…</div>
+  </div>
+</div>
+<div id="auth-screen" style="display:none">
+  <div class="auth-header">
+    <img src="logo.png" alt="Domotekan">
+    <div>
+      <p class="auth-header-label">Panel de control</p>
+      <h1 class="auth-header-title">Acceso profesional</h1>
     </div>
-    <div class="auth-sub">Panel de control · Acceso profesional</div>
+  </div>
+  <div class="auth-card">
+    <p class="auth-intro">Introduce tus credenciales para continuar</p>
     <div class="field">
       <label>Email</label>
       <input type="email" id="auth-email" placeholder="tu@domotekan.com" autocomplete="email">
@@ -373,13 +386,8 @@ tbody tr:hover { background: var(--bg); }
 <div id="app">
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
-          <path d="M6.5 14a4 4 0 0 1 7 0"/>
-          <path d="M8.2 15.8a2 2 0 0 1 3.6 0"/>
-          <circle cx="10" cy="17.2" r="0.55" fill="var(--green)" stroke="none"/>
-        </svg>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <img src="logo.png" alt="" style="height:34px;width:auto;object-fit:contain;flex-shrink:0;max-width:80px;">
         <div>
           <div class="logo-text">Domo<span>tekan</span></div>
           <div style="font-size:9px;color:var(--text-3);letter-spacing:0.1em;text-transform:uppercase;margin-top:1px">Smart Home</div>
@@ -404,7 +412,7 @@ tbody tr:hover { background: var(--bg); }
       </div>
       <div class="nav-item superadmin-only" onclick="showPage('installers')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Instaladores
+        Instaladores / Empresas
       </div>
       <div class="nav-section">Sistema</div>
       <div class="nav-item" onclick="showPage('alerts')">
@@ -430,9 +438,9 @@ tbody tr:hover { background: var(--bg); }
       <div class="topbar">
         <h1>Panel general</h1>
         <div class="topbar-actions">
-          <button class="btn superadmin-only" onclick="openInviteModal()">
+          <button class="btn invite-only" id="invite-btn" onclick="openInviteModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            Invitar instalador
+            <span id="invite-btn-label">Invitar instalador</span>
           </button>
         </div>
       </div>
@@ -508,7 +516,7 @@ tbody tr:hover { background: var(--bg); }
 
     <div class="page superadmin-only" id="page-installers">
       <div class="topbar">
-        <h1>Instaladores</h1>
+        <h1>Instaladores / Empresas</h1>
         <div class="topbar-actions">
           <button class="btn btn-green" onclick="openInviteModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -523,12 +531,29 @@ tbody tr:hover { background: var(--bg); }
               <th>Nombre</th>
               <th>Email</th>
               <th>Rol</th>
+              <th>Empresa</th>
               <th>Estado</th>
               <th>Registrado</th>
               <th></th>
             </tr></thead>
             <tbody id="installers-body">
-              <tr><td colspan="6" class="loading">Cargando...</td></tr>
+              <tr><td colspan="7" class="loading">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="table-card" style="margin-top:16px;">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Empresa</th>
+              <th>Admins/Instaladores</th>
+              <th>Usuarios</th>
+              <th>Hardware</th>
+              <th>Creada</th>
+            </tr></thead>
+            <tbody id="empresas-body">
+              <tr><td colspan="5" class="loading">Cargando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -568,10 +593,11 @@ tbody tr:hover { background: var(--bg); }
               <th>Estado</th>
               <th>Cliente</th>
               <th>Dirección</th>
+              <th>Empresa</th>
               <th>Último contacto</th>
             </tr></thead>
             <tbody id="hardware-body">
-              <tr><td colspan="5" class="loading">Cargando hardware...</td></tr>
+              <tr><td colspan="6" class="loading">Cargando hardware...</td></tr>
             </tbody>
           </table>
         </div>
@@ -605,12 +631,12 @@ tbody tr:hover { background: var(--bg); }
 
 <div class="modal-overlay" id="invite-modal">
   <div class="modal">
-    <h2>Enlace de registro para instalador</h2>
+    <h2 id="invite-modal-title">Enlace de registro para instalador</h2>
     <p>Este enlace es válido durante <strong>5 minutos</strong> y solo puede usarse una vez. Compártelo directamente con el instalador.</p>
     <div class="invite-link-box" id="invite-link-text">Generando enlace...</div>
     <div class="countdown" id="invite-countdown"></div>
     <div class="modal-actions">
-      <button class="btn" onclick="copyInviteLink()">Copiar enlace</button>
+      <button class="btn" onclick="copyInviteLink(this)">Copiar enlace</button>
       <button class="btn btn-green" onclick="closeModal()">Cerrar</button>
     </div>
   </div>
@@ -675,6 +701,31 @@ let inviteToken = null;
 let editingServerId = null;
 let appInitialized = false;
 
+const PROFILE_CACHE_KEY = 'dtk_profile_v1';
+const PROFILE_CACHE_TTL = 10 * 60 * 1000; // 10 minutos
+
+function getCachedProfile() {
+  try {
+    const { profile, ts } = JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY) || 'null') ?? {};
+    if (!profile || Date.now() - ts > PROFILE_CACHE_TTL) return null;
+    return profile;
+  } catch (_) { return null; }
+}
+function setCachedProfile(profile) {
+  try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ profile, ts: Date.now() })); } catch (_) {}
+}
+function clearCachedProfile() { localStorage.removeItem(PROFILE_CACHE_KEY); }
+
+// Lee el usuario almacenado en localStorage sin hacer llamadas de red.
+// getSession() puede tardar 10s si el token expiró (hace refresh de red).
+function getLocalUser() {
+  try {
+    const k = Object.keys(localStorage).find(k => /^sb-.+-auth-token$/.test(k));
+    if (!k) return null;
+    return JSON.parse(localStorage.getItem(k))?.user ?? null;
+  } catch (_) { return null; }
+}
+
 // AUTH
 async function login() {
   const email = document.getElementById('auth-email').value.trim();
@@ -703,25 +754,54 @@ async function login() {
 }
 
 async function initApp(user) {
+  if (appInitialized) return;
   currentUser = user;
 
-  const { data: profile, error } = await sb.from('usuarios').select('*').eq('email', user.email).single();
+  const _timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000));
+  const { data: profile, error } = await Promise.race([
+    sb.from('usuarios').select('*').eq('email', user.email).single(),
+    _timeout
+  ]).catch(e => ({ data: null, error: e }));
 
-  if (error || !profile) {
-    const msg = error ? `[${error.code}] ${error.message}` : 'Usuario no encontrado en la tabla usuarios.';
-    console.error('[initApp] Error cargando perfil:', msg, error);
-    await sb.auth.signOut();
-    const errEl = document.getElementById('auth-error');
-    if (errEl) errEl.textContent = 'Error al cargar perfil: ' + msg;
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('auth-screen').style.display = 'flex';
-    const btn = document.querySelector('.btn-primary');
-    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
+  if (error) {
+    const isNotFound = error?.code === 'PGRST116';
+    console.error('[initApp] Error cargando perfil:', error?.code, error?.message || error);
+    if (isNotFound) { clearCachedProfile(); await sb.auth.signOut(); }
+    showAuthScreen(isNotFound
+      ? 'Usuario no registrado en el panel. Contacta con tu instalador.'
+      : 'Error de conexión. Inténtalo de nuevo.');
     return;
   }
 
+  if (!profile) {
+    clearCachedProfile();
+    await sb.auth.signOut();
+    showAuthScreen('Usuario no encontrado. Contacta con tu instalador.');
+    return;
+  }
+
+  const ROLES_PERMITIDOS = ['instalador', 'admin', 'superadmin', 'user'];
+  if (!ROLES_PERMITIDOS.includes(profile.rol)) {
+    console.warn('[initApp] Acceso denegado — rol no autorizado:', profile.rol);
+    clearCachedProfile();
+    await sb.auth.signOut();
+    showAuthScreen('Acceso no autorizado. Contacta con tu instalador.');
+    return;
+  }
+
+  if (!profile.activo) {
+    console.warn('[initApp] Acceso denegado — cuenta desactivada:', profile.email);
+    clearCachedProfile();
+    await sb.auth.signOut();
+    showAuthScreen('Tu cuenta ha sido desactivada. Contacta con tu administrador.');
+    return;
+  }
+
+  setCachedProfile(profile);
+  appInitialized = true;
   currentProfile = profile;
 
+  document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
@@ -734,15 +814,57 @@ async function initApp(user) {
   if (profile.rol !== 'superadmin') {
     document.querySelectorAll('.superadmin-only').forEach(el => el.style.display = 'none');
   }
+  if (profile.rol === 'user') {
+    document.querySelectorAll('.no-delete-for-user').forEach(el => el.style.display = 'none');
+  }
+  if (profile.rol !== 'superadmin' && profile.rol !== 'admin') {
+    document.querySelectorAll('.invite-only').forEach(el => el.style.display = 'none');
+  } else {
+    document.getElementById('invite-btn-label').textContent = profile.rol === 'admin' ? 'Invitar trabajador' : 'Invitar instalador';
+    await refreshInviteLimit();
+  }
 
   loadDashboard();
   loadAlertBadge();
 }
 
+// Desactiva el botón de invitar cuando un admin agota su cupo de 3 empleados.
+// Sin límite (null) para superadmin; no aplica si el rol no puede invitar.
+async function refreshInviteLimit() {
+  if (currentProfile?.rol !== 'admin') return;
+  const { data: restantes, error } = await sb.rpc('invitaciones_restantes');
+  if (error) { console.error('[refreshInviteLimit] error:', error); return; }
+  const btn = document.getElementById('invite-btn');
+  const label = document.getElementById('invite-btn-label');
+  if (!btn || !label) return;
+  if (restantes <= 0) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    label.textContent = 'Límite alcanzado (3/3)';
+  } else {
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.style.cursor = '';
+    label.textContent = 'Invitar trabajador';
+  }
+}
+
 async function logout() {
+  clearCachedProfile();
   appInitialized = false;
   await sb.auth.signOut();
   // onAuthStateChange SIGNED_OUT gestiona el resto
+}
+
+function showAuthScreen(errorMsg) {
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  const btn = document.querySelector('.btn-primary');
+  if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
+  const errEl = document.getElementById('auth-error');
+  if (errEl) errEl.textContent = errorMsg || '';
 }
 
 // NAVIGATION
@@ -876,12 +998,16 @@ async function guardarInstalacion() {
     showToast('✅ ' + cliente + ' dado de alta');
     await auditLog('hw_create', hw_id, { client_name: cliente });
 
-    // Capturar WAN IP del instalador (que está en casa del cliente) para restringir el registro
+    // Capturar WAN IP del instalador (que está en casa del cliente) para restringir el registro,
+    // y etiquetar el hardware con la empresa de quien lo está dando de alta
     try {
       const ipRes = await fetch('/api/my-ip').catch(() => null);
       const { ip: wanIp } = await ipRes?.json().catch(() => ({})) || {};
-      if (wanIp && wanIp !== 'unknown') {
-        await sb.from('hardware_devices').update({ wan_ip: wanIp }).eq('hw_id', hw_id);
+      const patch = {};
+      if (wanIp && wanIp !== 'unknown') patch.wan_ip = wanIp;
+      if (currentProfile?.empresa_id) patch.empresa_id = currentProfile.empresa_id;
+      if (Object.keys(patch).length) {
+        await sb.from('hardware_devices').update(patch).eq('hw_id', hw_id);
       }
     } catch (_) {}
 
@@ -1114,8 +1240,8 @@ const DEMO_MAP = Object.fromEntries(DEMO_SERVERS.map(s => [s.id, s]));
 // ==========================================
 async function getServersWithStats() {
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
-  const query = sb.from('hardware_devices').select('*').order('id', { ascending: false });
-  const { data: servers, error: errSrv } = await Promise.race([query, timeout]).catch(e => ({ data: null, error: e }));
+  const baseQuery = sb.from('hardware_devices').select('*').order('id', { ascending: false });
+  const { data: servers, error: errSrv } = await Promise.race([baseQuery, timeout]).catch(e => ({ data: null, error: e }));
   if (errSrv) console.error('[getServersWithStats] hardware_devices error:', errSrv);
 
   // Cargar último heartbeat por hw_id (identificador universal de instalación)
@@ -1276,9 +1402,12 @@ async function loadHardware() {
   const tbody = document.getElementById('hardware-body');
   tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando...</td></tr>';
 
-  const [{ data: rows, error }, { data: hbs }] = await Promise.all([
-    sb.from('hardware_devices').select('*').order('id', { ascending: false }),
-    sb.from('heartbeats').select('hw_id, recibido_en, cpu, ram, disco, temperatura').not('hw_id', 'is', null).order('recibido_en', { ascending: false })
+  const isSuperadminHw = currentProfile?.rol === 'superadmin';
+  const hwQuery = sb.from('hardware_devices').select('*').order('id', { ascending: false });
+  const [{ data: rows, error }, { data: hbs }, { data: empresas }] = await Promise.all([
+    hwQuery,
+    sb.from('heartbeats').select('hw_id, recibido_en, cpu, ram, disco, temperatura').not('hw_id', 'is', null).order('recibido_en', { ascending: false }),
+    isSuperadminHw ? sb.rpc('listar_empresas') : Promise.resolve({ data: [] })
   ]);
 
   if (error) { console.error('[loadHardware]', error); tbody.innerHTML = '<tr><td colspan="6" class="empty">Error al cargar</td></tr>'; return; }
@@ -1302,14 +1431,34 @@ async function loadHardware() {
     const badgeClass = !isActive ? 'warn' : (isOnlineNow ? 'online' : 'offline');
     const badgeLabel = !isActive ? 'Sin asignar' : (isOnlineNow ? 'Online' : 'Offline');
     const stats = hb ? `CPU ${Math.round(hb.cpu||0)}% · RAM ${Math.round(hb.ram||0)}% · ${Math.round(hb.temperatura||0)}°C` : '';
+    const empresaCell = isSuperadminHw
+      ? `<select onclick="event.stopPropagation()" onchange="asignarEmpresaHardware(this,'${r.id}')"
+           style="font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);max-width:160px;">
+           <option value="">Sin asignar</option>
+           ${(empresas || []).map(e => `<option value="${e.empresa_id}" ${e.empresa_id === r.empresa_id ? 'selected' : ''}>${e.empresa_nombre}</option>`).join('')}
+         </select>`
+      : '—';
     return `<tr onclick="openDetailPanel('${r.id}')">
       <td style="font-family:'DM Mono',monospace;font-size:12px">${r.hw_id || '—'}</td>
       <td><span class="badge ${badgeClass}"><span class="badge-dot"></span>${badgeLabel}</span></td>
       <td>${r.client_name || '—'}</td>
       <td style="font-size:13px;color:var(--text-2)">${r.direccion || r.alias || '—'}</td>
+      <td onclick="event.stopPropagation()">${empresaCell}</td>
       <td style="font-size:12px;color:var(--text-3)">${lastSeen ? timeAgo(lastSeen) : '—'}${stats ? `<br><span style="color:var(--text-3);font-size:11px">${stats}</span>` : ''}</td>
     </tr>`;
   }).join('');
+}
+
+async function asignarEmpresaHardware(selectEl, id) {
+  const empresaId = selectEl.value || null;
+  const { error } = await sb.from('hardware_devices').update({ empresa_id: empresaId }).eq('id', id);
+  if (error) {
+    console.error('[asignarEmpresaHardware]', error);
+    showToast('Error al asignar empresa: ' + error.message);
+    return;
+  }
+  await auditLog('hw_assign_empresa', id, { empresa_id: empresaId });
+  showToast('Empresa actualizada');
 }
 
 // DETAIL PANEL
@@ -1501,13 +1650,23 @@ async function loadServers() {
   }
 }
 
-// INSTALLERS
+// INSTALLERS / EMPRESAS
 async function loadInstallers() {
   const tbody = document.getElementById('installers-body');
-  tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando...</td></tr>';
-  const { data } = await sb.from('usuarios').select('*').in('rol',['instalador','admin']).order('creado_en');
-  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay instaladores aún.</td></tr>'; return; }
-  tbody.innerHTML = data.map(u => `
+  tbody.innerHTML = '<tr><td colspan="7" class="loading">Cargando...</td></tr>';
+
+  const [{ data: users }, { data: empresas, error: empErr }] = await Promise.all([
+    sb.from('usuarios').select('*').in('rol', ['instalador', 'admin', 'user']).order('creado_en'),
+    sb.rpc('listar_empresas')
+  ]);
+
+  if (empErr) console.error('[loadInstallers] listar_empresas error:', empErr);
+  const empresaMap = {};
+  (empresas || []).forEach(e => { empresaMap[e.empresa_id] = e; });
+  renderEmpresasTable(empresas || []);
+
+  if (!users || !users.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay instaladores aún.</td></tr>'; return; }
+  tbody.innerHTML = users.map(u => `
     <tr>
       <td><div style="display:flex;align-items:center;gap:10px">
         <div class="inst-avatar">${u.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
@@ -1515,9 +1674,25 @@ async function loadInstallers() {
       </div></td>
       <td style="color:var(--text-2);font-size:13px">${u.email}</td>
       <td><span class="badge ${u.rol === 'admin' ? 'warn' : 'online'}">${u.rol}</span></td>
+      <td style="font-size:13px;color:var(--text-2)">${empresaMap[u.empresa_id]?.empresa_nombre || '—'}</td>
       <td><span class="badge ${u.activo ? 'online' : 'offline'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
       <td style="font-size:12px;color:var(--text-3)">${new Date(u.creado_en).toLocaleDateString('es-ES')}</td>
-      <td><button class="action-btn danger" onclick="toggleUser('${u.id}',${u.activo})">${u.activo ? 'Desactivar' : 'Activar'}</button></td>
+      <td><button class="action-btn danger no-delete-for-user" onclick="toggleUser('${u.id}',${u.activo})">${u.activo ? 'Desactivar' : 'Activar'}</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderEmpresasTable(empresas) {
+  const tbody = document.getElementById('empresas-body');
+  if (!tbody) return;
+  if (!empresas.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No hay empresas aún.</td></tr>'; return; }
+  tbody.innerHTML = empresas.map(e => `
+    <tr>
+      <td class="inst-name">${e.empresa_nombre}</td>
+      <td>${e.num_admins}</td>
+      <td>${e.num_usuarios}</td>
+      <td>${e.num_hardware}</td>
+      <td style="font-size:12px;color:var(--text-3)">${new Date(e.creado_en).toLocaleDateString('es-ES')}</td>
     </tr>
   `).join('');
 }
@@ -1577,20 +1752,30 @@ async function loadAlerts() {
 
 // INVITE
 async function openInviteModal() {
-  const token = crypto.randomUUID().replace(/-/g,'').slice(0,16);
-  inviteToken = token;
-  const expira = new Date(Date.now() + 5 * 60 * 1000);
+  if (currentProfile?.rol !== 'superadmin' && currentProfile?.rol !== 'admin') {
+    showToast('No tienes permisos para generar invitaciones');
+    return;
+  }
 
-  await sb.from('invitaciones').insert({
-    token,
-    creado_por: currentProfile.id,
-    expira_en: expira.toISOString()
-  });
+  // La inserción ocurre dentro de crear_invitacion() (RPC, SECURITY DEFINER) —
+  // el INSERT directo desde el cliente está bloqueado por RLS para 'authenticated'.
+  const { data: token, error: rpcError } = await sb.rpc('crear_invitacion');
+
+  if (rpcError) {
+    console.error('[openInviteModal] Error al generar la invitación:', rpcError);
+    showToast('No se pudo generar el enlace: ' + rpcError.message);
+    return;
+  }
+
+  const expira = new Date(Date.now() + 5 * 60 * 1000); // solo para el contador visual; el límite real lo aplica el servidor
+  inviteToken = token;
   await auditLog('invite_create', token, { expira_en: expira.toISOString() });
 
   const link = `${location.origin}/register?invite=${token}`;
   document.getElementById('invite-link-text').textContent = link;
+  document.getElementById('invite-modal-title').textContent = currentProfile.rol === 'admin' ? 'Enlace de registro para trabajador' : 'Enlace de registro para instalador';
   document.getElementById('invite-modal').classList.add('open');
+  await refreshInviteLimit(); // por si esta invitación agota el cupo de 3
 
   let secs = 300;
   clearInterval(inviteCountdownInterval);
@@ -1612,6 +1797,30 @@ function closeModal() {
   document.getElementById('invite-modal').classList.remove('open');
   document.getElementById('alta-modal').classList.remove('open');
   clearInterval(inviteCountdownInterval);
+}
+
+async function copyInviteLink(btn) {
+  const link = document.getElementById('invite-link-text').textContent;
+  const original = btn ? btn.textContent : null;
+  try {
+    await navigator.clipboard.writeText(link);
+  } catch (_) {
+    // Fallback para navegadores/contextos sin permiso de Clipboard API
+    const ta = document.createElement('textarea');
+    ta.value = link;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  if (btn) {
+    btn.textContent = '¡Copiado!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  } else {
+    showToast('Enlace copiado');
+  }
 }
 
 // TOAST
@@ -1637,32 +1846,71 @@ setInterval(() => {
 // GESTOR DE SESIÓN — PUNTO DE ENTRADA ÚNICO
 // ==========================================
 
-async function checkSession() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) {
-    await initApp(session.user);
-  } else {
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('auth-screen').style.display = 'flex';
-  }
-}
-
 sb.auth.onAuthStateChange(async (event, session) => {
   console.log('[auth] event:', event, '| user:', session?.user?.email || 'none');
 
-  if (event === 'SIGNED_IN' && session?.user) {
+  if (event === 'SIGNED_IN' && session?.user && !appInitialized) {
     await initApp(session.user);
   }
 
   if (event === 'SIGNED_OUT') {
+    appInitialized = false;
     currentUser = null;
     currentProfile = null;
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('auth-screen').style.display = 'flex';
-    const btn = document.querySelector('.btn-primary');
-    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
+    showAuthScreen();
   }
 });
+
+// Arranque rápido: sin llamadas de red.
+// 1) Comprueba si hay usuario en localStorage (instantáneo).
+// 2) Si hay perfil cacheado, muestra el panel ya; valida sesión en background.
+// 3) Si no hay cache, llama a initApp normal (hará la query a usuarios).
+(async () => {
+  const localUser = getLocalUser();
+  if (!localUser) { showAuthScreen(); return; }
+
+  const cached = getCachedProfile();
+  if (cached) {
+    // Carga instantánea con datos cacheados
+    currentUser = localUser;
+    appInitialized = true;
+    currentProfile = cached;
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    const nombre = cached.nombre || cached.email || '?';
+    document.getElementById('sidebar-name').textContent = nombre;
+    document.getElementById('sidebar-email').textContent = cached.email;
+    document.getElementById('sidebar-avatar').textContent = nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('sidebar-role').textContent = cached.rol || '—';
+    if (cached.rol !== 'superadmin') document.querySelectorAll('.superadmin-only').forEach(el => el.style.display = 'none');
+    if (cached.rol === 'user') document.querySelectorAll('.no-delete-for-user').forEach(el => el.style.display = 'none');
+    if (cached.rol !== 'superadmin' && cached.rol !== 'admin') {
+      document.querySelectorAll('.invite-only').forEach(el => el.style.display = 'none');
+    } else {
+      document.getElementById('invite-btn-label').textContent = cached.rol === 'admin' ? 'Invitar trabajador' : 'Invitar instalador';
+      refreshInviteLimit();
+    }
+    loadDashboard();
+    loadAlertBadge();
+
+    // Background: valida que la sesión sigue activa y refresca perfil
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) {
+        clearCachedProfile();
+        appInitialized = false;
+        currentProfile = null;
+        showAuthScreen('Tu sesión ha expirado. Vuelve a entrar.');
+      } else {
+        sb.from('usuarios').select('*').eq('email', session.user.email).single()
+          .then(({ data }) => { if (data) setCachedProfile(data); });
+      }
+    });
+  } else {
+    // Sin cache: carga normal con query a Supabase
+    await initApp(localUser);
+  }
+})();
 
 // ── IA DIAGNOSIS ───────────────────────────────────────────────────────────
 async function runDiagnosis(serverId) {
@@ -1723,8 +1971,6 @@ async function runDiagnosis(serverId) {
 }
 
 document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
-
-checkSession();
 </script>
 </body>
 </html>
