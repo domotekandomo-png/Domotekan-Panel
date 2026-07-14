@@ -14,6 +14,9 @@
   --green: #F59E0B;
   --green-light: #FEF3C7;
   --green-dark: #B45309;
+  --ok: #1D9E75;
+  --ok-light: #E1F5EE;
+  --ok-dark: #0F6E56;
   --red: #D85A30;
   --red-light: #FAECE7;
   --amber: #BA7517;
@@ -164,7 +167,7 @@ nav { flex: 1; padding: 12px 0; overflow-y: auto; }
 }
 .metric-label { font-size: 12px; color: var(--text-2); margin-bottom: 8px; }
 .metric-value { font-size: 28px; font-weight: 500; font-family: 'DM Mono', monospace; }
-.metric-value.green { color: var(--green); }
+.metric-value.green { color: var(--ok); }
 .metric-value.red { color: var(--red); }
 .metric-sub { font-size: 11px; color: var(--text-3); margin-top: 4px; }
 
@@ -186,7 +189,7 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
   padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 500;
 }
 .badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.badge.online { background: var(--green-light); color: var(--green-dark); }
+.badge.online { background: var(--ok-light); color: var(--ok-dark); }
 .badge.offline { background: var(--red-light); color: var(--red); }
 .badge.warn { background: var(--amber-light); color: var(--amber); }
 .badge.pending { background: #EDE9FE; color: #6D28D9; }
@@ -580,8 +583,8 @@ tbody tr:hover { background: var(--bg); }
           <span style="width:6px;height:6px;border-radius:50%;background:#6D28D9;display:inline-block"></span>
           <span id="hw-stat-pending">— pendientes</span>
         </div>
-        <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;background:var(--green-light);color:var(--green-dark);font-size:12px;font-weight:500;">
-          <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span>
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;background:var(--ok-light);color:var(--ok-dark);font-size:12px;font-weight:500;">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--ok);display:inline-block"></span>
           <span id="hw-stat-assigned">— asignados</span>
         </div>
       </div>
@@ -993,7 +996,7 @@ async function guardarInstalacion() {
       throw new Error(data.error || data.message || 'El workflow n8n no respondió correctamente (HTTP ' + res.status + '). Comprueba que WF3 está activo en n8n.');
     }
 
-    msgEl.style.color = 'var(--green)';
+    msgEl.style.color = 'var(--ok)';
     msgEl.textContent = '✅ Instalación activada — ' + data.client_url;
     showToast('✅ ' + cliente + ' dado de alta');
     await auditLog('hw_create', hw_id, { client_name: cliente });
@@ -1507,7 +1510,7 @@ async function openDetailPanel(id) {
         <div class="detail-section-title">Diagnóstico IA</div>
         <button class="btn-diag" id="diag-btn-${d.id}" onclick="
           document.getElementById('diag-btn-${d.id}').style.display='none';
-          document.getElementById('diag-result-${d.id}').innerHTML='<p style=\\'margin:0;font-size:13px;color:var(--green-dark)\\'>✓ Sistema funcionando correctamente. CPU, RAM y temperatura dentro de parámetros normales. Sin alertas activas.</p>'">
+          document.getElementById('diag-result-${d.id}').innerHTML='<p style=\\'margin:0;font-size:13px;color:var(--ok-dark)\\'>✓ Sistema funcionando correctamente. CPU, RAM y temperatura dentro de parámetros normales. Sin alertas activas.</p>'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
           </svg>
