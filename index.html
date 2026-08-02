@@ -302,6 +302,20 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
   display: flex; gap: 12px; flex-wrap: wrap;
 }
 
+/* CHECKLIST */
+.cl-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+.cl-row:last-child { border-bottom: none; }
+.cl-ic { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 10px; font-weight: 700; }
+.cl-done { background: var(--ok-light); color: var(--ok-dark); }
+.cl-pend { background: var(--bg); color: var(--text-3); border: 0.5px solid var(--border-strong); }
+.cl-prog { background: var(--amber-light); color: var(--amber); }
+.cl-label { font-size: 12.5px; flex: 1; }
+.cl-label.pend { color: var(--text-3); }
+.cl-status { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.cl-status.done { color: var(--ok-dark); }
+.cl-status.pend { color: var(--text-3); }
+.cl-status.prog { color: var(--amber); }
+
 /* TOAST */
 .toast {
   position: fixed; bottom: 24px; right: 24px;
@@ -487,7 +501,7 @@ tbody tr:hover { background: var(--bg); }
       <div class="topbar">
         <h1>Servidores</h1>
         <div class="topbar-actions">
-          <input type="text" id="server-search" placeholder="Buscar por nombre, instalador o dirección..."
+          <input type="text" id="server-search" placeholder="Buscar por alias, cliente, HW ID, URL, dirección…"
                  onkeyup="filterServers()"
                  style="padding: 8px 14px; border-radius: 6px; border: 0.5px solid var(--border-strong); font-size: 13px; width: 300px;">
           <button class="btn btn-green" onclick="openAltaModal()">
@@ -506,8 +520,11 @@ tbody tr:hover { background: var(--bg); }
             <thead><tr>
               <th>Instalación</th>
               <th>Estado</th>
-              <th>Dirección</th>
+              <th>HW ID</th>
+              <th>URL / Panel</th>
+              <th>IP WireGuard</th>
               <th>Último contacto</th>
+              <th>Progreso puesta en marcha</th>
             </tr></thead>
             <tbody id="servers-body">
               <tr><td colspan="4" class="loading">Cargando...</td></tr>
@@ -1187,56 +1204,68 @@ function filterServers() {
   });
 }
 
+function clProgress(s) {
+  const isActive = s.status === 'active';
+  const hasWg = !!(s.wg_ip);
+  const hasUrl = !!s.client_url;
+  const hasHttps = hasUrl && (s.client_url || '').startsWith('https://');
+  const steps = [
+    true,           // instalación creada
+    isActive || hasWg,   // WireGuard generado
+    isActive || hasUrl,  // Nginx Proxy
+    hasHttps,            // HTTPS activo
+    isActive,            // config WG descargada
+    isActive,            // HA conectado
+    isActive,            // conector instalado
+    isActive,            // entidades sincronizadas
+    false,               // usuario cliente creado (no derivable)
+    false,               // soporte remoto activo (no derivable)
+  ];
+  const done = steps.filter(Boolean).length;
+  return { done, tot: steps.length };
+}
+
 function serverRow(s) {
   const online = isOnline(s.ultimo_heartbeat);
   const provisionado = s.status === 'active';
   const estado = !provisionado ? 'warn' : (online ? 'online' : 'offline');
   const estadoLabel = !provisionado ? 'Sin asignar' : (online ? 'Online' : 'Offline');
 
-  const subtitle = (s.alias && s.alias !== s.nombre) ? s.alias
-                 : s.direccion ? s.direccion
-                 : null;
+  const p = clProgress(s);
+  const pct = Math.round(p.done / p.tot * 100);
+  const fillColor = pct === 100 ? 'var(--ok)' : (provisionado ? 'var(--green)' : 'var(--amber)');
+
+  const displayName = s.alias || s.client_name || s.nombre;
+  const displaySub = (s.client_name && s.alias && s.client_name !== s.alias)
+    ? s.client_name
+    : (s.direccion || null);
+
+  const urlDisplay = s.client_url
+    ? `<a href="${s.client_url}" target="_blank" onclick="event.stopPropagation()"
+         style="color:var(--blue);text-decoration:none;font-family:'DM Mono',monospace;font-size:11px"
+       >${s.client_url.replace('https://', '')}</a>`
+    : '<span style="color:var(--text-3)">—</span>';
+
   let row = `<td>
-    <div class="server-name">${s.nombre}</div>
-    ${subtitle ? `<div class="server-id">${subtitle}</div>` : ''}
+    <div class="server-name">${displayName}</div>
+    ${displaySub ? `<div class="server-id">${displaySub}</div>` : ''}
   </td>`;
   row += `<td><span class="badge ${estado}"><span class="badge-dot"></span>${estadoLabel}</span></td>`;
-  row += `<td style="font-size:13px;color:var(--text-2)">${s.direccion || s.alias || '—'}</td>`;
+  row += `<td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-2)">${s.hw_id || '—'}</td>`;
+  row += `<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${urlDisplay}</td>`;
+  row += `<td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-3)">${s.wg_ip || '<span style="color:var(--text-3)">—</span>'}</td>`;
   row += `<td style="font-size:12px;color:var(--text-3)">${timeAgo(s.ultimo_heartbeat)}</td>`;
+  row += `<td>
+    <div style="display:flex;align-items:center;gap:8px;min-width:100px">
+      <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${fillColor};border-radius:2px"></div>
+      </div>
+      <span style="font-size:11px;color:var(--text-3);white-space:nowrap;font-family:'DM Mono',monospace">${p.done}/${p.tot}</span>
+    </div>
+  </td>`;
 
   return `<tr onclick="openDetailPanel('${s.id}')">${row}</tr>`;
 }
-
-// ── DATOS DEMO ────────────────────────────────────────────────────────────
-const _demoNow = Date.now();
-const DEMO_SERVERS = [
-  { id:'demo-001', hw_id:'0126-0001', nombre:'Juan Carlos Molina',  alias:'Casa',   direccion:'Calle Iturribide 12, 3B, Bilbao',          cp:'48004', comunidad:'Bizkaia',  assigned_at:'2026-01-15T10:00:00Z', client_url:'https://juan-carlos-molina-0001.domotekan.com',         wg_ip:'10.10.0.13', online:true,  cpu:14, ram:38, disco:24, temp:40 },
-  { id:'demo-002', hw_id:'0126-0002', nombre:'Francisco Navarro',   alias:'Piso',   direccion:'Av. Zumalacárregui 8, 2D, Donostia',       cp:'20002', comunidad:'Gipuzkoa', assigned_at:'2026-01-22T11:00:00Z', client_url:'https://francisco-navarro-0002.domotekan.com',           wg_ip:'10.10.0.14', online:true,  cpu: 8, ram:29, disco:31, temp:37 },
-  { id:'demo-003', hw_id:'0226-0001', nombre:'Aurora Jiménez',      alias:'Casa',   direccion:'Calle Autonomía 34, 2A, Bilbao',           cp:'48012', comunidad:'Bizkaia',  assigned_at:'2026-02-03T09:30:00Z', client_url:'https://aurora-jimenez-0001.domotekan.com',              wg_ip:'10.10.0.15', online:true,  cpu:22, ram:51, disco:18, temp:42 },
-  { id:'demo-004', hw_id:'0226-0002', nombre:'Jon Urrutia',          alias:'Piso',   direccion:'Portuetxe 7, 1D, Donostia',                cp:'20018', comunidad:'Gipuzkoa', assigned_at:'2026-02-10T14:00:00Z', client_url:'https://jon-urrutia-0002.domotekan.com',                 wg_ip:'10.10.0.16', online:true,  cpu: 5, ram:44, disco:27, temp:39 },
-  { id:'demo-005', hw_id:'0226-0003', nombre:'Carmen Ruiz López',   alias:'Casa',   direccion:'Plaza Unamuno 3, 4C, Bilbao',              cp:'48006', comunidad:'Bizkaia',  assigned_at:'2026-02-18T10:15:00Z', client_url:'https://carmen-ruiz-0003.domotekan.com',                 wg_ip:'10.10.0.17', online:true,  cpu:18, ram:36, disco:45, temp:41 },
-  { id:'demo-006', hw_id:'0326-0001', nombre:'Gorka Aguirre',        alias:'Chalet', direccion:'Calle Ramón y Cajal 15, Vitoria-Gasteiz',  cp:'01002', comunidad:'Álava',    assigned_at:'2026-03-05T09:00:00Z', client_url:'https://gorka-aguirre-0001.domotekan.com',               wg_ip:'10.10.0.18', online:true,  cpu:31, ram:62, disco:38, temp:44 },
-  { id:'demo-007', hw_id:'0326-0002', nombre:'Roberto Fernández',   alias:'Piso',   direccion:'Calle Elcano 22, 5B, Bilbao',             cp:'48009', comunidad:'Bizkaia',  assigned_at:'2026-03-12T11:30:00Z', client_url:'https://roberto-fernandez-0002.domotekan.com',           wg_ip:'10.10.0.19', online:true,  cpu: 9, ram:27, disco:19, temp:38 },
-  { id:'demo-008', hw_id:'0326-0003', nombre:'Iñaki Garaizar',       alias:'Casa',   direccion:'Barrio Elexalde 4, Getxo',                 cp:'48990', comunidad:'Bizkaia',  assigned_at:'2026-03-19T10:00:00Z', client_url:'https://inaki-garaizar-0003.domotekan.com',              wg_ip:'10.10.0.20', online:true,  cpu:16, ram:48, disco:33, temp:40 },
-  { id:'demo-009', hw_id:'0426-0001', nombre:'María Jesús Pardo',   alias:'Piso',   direccion:'Calle Artekale 9, 3A, Durango',           cp:'48200', comunidad:'Bizkaia',  assigned_at:'2026-04-02T09:00:00Z', client_url:'https://maria-jesus-pardo-0001.domotekan.com',           wg_ip:'10.10.0.21', online:true,  cpu:11, ram:33, disco:28, temp:39 },
-  { id:'demo-010', hw_id:'0426-0002', nombre:'Antonio Herrera',      alias:'Casa',   direccion:'Av. Lehendakari Aguirre 41, 3A, Bilbao',  cp:'48014', comunidad:'Bizkaia',  assigned_at:'2026-04-08T10:30:00Z', client_url:'https://antonio-herrera-0002.domotekan.com',             wg_ip:'10.10.0.22', online:true,  cpu:27, ram:55, disco:41, temp:43 },
-  { id:'demo-011', hw_id:'0426-0003', nombre:'Ainhoa Arrieta',       alias:'Piso',   direccion:'Calle Easo 17, 2D, Donostia',             cp:'20006', comunidad:'Gipuzkoa', assigned_at:'2026-04-15T11:00:00Z', client_url:'https://ainhoa-arrieta-0003.domotekan.com',              wg_ip:'10.10.0.23', online:true,  cpu: 7, ram:31, disco:22, temp:37 },
-  { id:'demo-012', hw_id:'0426-0004', nombre:'Manuel García Vega',  alias:'Casa',   direccion:'Calle Sabino Arana 5, 1B, Barakaldo',     cp:'48901', comunidad:'Bizkaia',  assigned_at:'2026-04-23T09:45:00Z', client_url:'https://manuel-garcia-0004.domotekan.com',               wg_ip:'10.10.0.24', online:true,  cpu:19, ram:42, disco:35, temp:41 },
-  { id:'demo-013', hw_id:'0526-0003', nombre:'Patricia Soler',       alias:'Piso',   direccion:'Calle Garibai 28, 4C, Donostia',          cp:'20004', comunidad:'Gipuzkoa', assigned_at:'2026-05-06T10:00:00Z', client_url:'https://patricia-soler-0003.domotekan.com',              wg_ip:'10.10.0.25', online:true,  cpu:13, ram:39, disco:26, temp:39 },
-  { id:'demo-014', hw_id:'0526-0004', nombre:'Julen Urquijo',        alias:'Chalet', direccion:'Av. Basagoiti 33, Algorta',               cp:'48990', comunidad:'Bizkaia',  assigned_at:'2026-05-13T11:30:00Z', client_url:'https://julen-urquijo-0004.domotekan.com',               wg_ip:'10.10.0.26', online:true,  cpu:24, ram:47, disco:30, temp:42 },
-  { id:'demo-015', hw_id:'0526-0005', nombre:'Elena Martínez',       alias:'Piso',   direccion:'Calle Correo 11, 3C, Bilbao',             cp:'48001', comunidad:'Bizkaia',  assigned_at:'2026-05-19T09:00:00Z', client_url:'https://elena-martinez-0005.domotekan.com',              wg_ip:'10.10.0.27', online:true,  cpu: 6, ram:25, disco:17, temp:36 },
-  { id:'demo-016', hw_id:'0526-0006', nombre:'Patxi Ugarte',         alias:'Casa',   direccion:'Calle Nagusia 7, Zarautz',                cp:'20800', comunidad:'Gipuzkoa', assigned_at:'2026-05-26T10:15:00Z', client_url:'https://patxi-ugarte-0006.domotekan.com',                wg_ip:'10.10.0.28', online:true,  cpu:20, ram:53, disco:44, temp:43 },
-  { id:'demo-017', hw_id:'0526-0007', nombre:'Sara González',        alias:'Piso',   direccion:'Calle San Francisco 42, 2A, Bilbao',      cp:'48003', comunidad:'Bizkaia',  assigned_at:'2026-05-30T11:00:00Z', client_url:'https://sara-gonzalez-0007.domotekan.com',               wg_ip:'10.10.0.29', online:true,  cpu:15, ram:37, disco:29, temp:40 },
-  { id:'demo-018', hw_id:'0626-0004', nombre:'Eneko Zubeldia',       alias:'Casa',   direccion:'Calle Fueros 19, 2B, Vitoria-Gasteiz',   cp:'01005', comunidad:'Álava',    assigned_at:'2026-06-03T09:30:00Z', client_url:'https://eneko-zubeldia-0004.domotekan.com',              wg_ip:'10.10.0.30', online:true,  cpu:10, ram:44, disco:32, temp:38 },
-  { id:'demo-019', hw_id:'0626-0005', nombre:'Luis Miguel Serrano',  alias:'Piso',   direccion:'Av. de la Libertad 8, 4B, Donostia',     cp:'20005', comunidad:'Gipuzkoa', assigned_at:'2026-06-05T10:00:00Z', client_url:'https://luis-miguel-serrano-0005.domotekan.com',         wg_ip:'10.10.0.31', online:true,  cpu:23, ram:50, disco:36, temp:41 },
-  { id:'demo-020', hw_id:'0626-0006', nombre:'Begoña Txapartegi',   alias:'Casa',   direccion:'Calle Uribitarte 16, 1A, Bilbao',         cp:'48001', comunidad:'Bizkaia',  assigned_at:'2026-06-08T11:00:00Z', client_url:'https://begona-txapartegi-0006.domotekan.com',           wg_ip:'10.10.0.32', online:true,  cpu: 8, ram:30, disco:21, temp:37 },
-  { id:'demo-021', hw_id:'0326-0004', nombre:'Carlos Ibáñez',       alias:'Casa',   direccion:'Calle Mayor 22, Hernani',          cp:'20120', comunidad:'Gipuzkoa', assigned_at:'2026-03-25T10:00:00Z', client_url:'https://carlos-ibanez-0004.domotekan.com',       wg_ip:'10.10.0.33', online:false, cpu:0, ram:0, disco:0, temp:null, lastSeen:new Date(_demoNow -  5*86400000).toISOString() },
-  { id:'demo-022', hw_id:'0226-0004', nombre:'Haritz Egiluz',       alias:'Piso',   direccion:'Calle Urazurrutia 8, 1A, Bilbao', cp:'48006', comunidad:'Bizkaia',  assigned_at:'2026-02-25T10:00:00Z', client_url:'https://haritz-egiluz-0004.domotekan.com',        wg_ip:'10.10.0.34', online:false, cpu:0, ram:0, disco:0, temp:null, lastSeen:new Date(_demoNow - 12*86400000).toISOString() },
-  { id:'demo-023', hw_id:'0426-0005', nombre:'Rocío Domínguez',     alias:'Casa',   direccion:'Calle Goienkale 4, Ermua',        cp:'48260', comunidad:'Bizkaia',  assigned_at:'2026-04-29T10:00:00Z', client_url:'https://rocio-dominguez-0005.domotekan.com',      wg_ip:'10.10.0.35', online:false, cpu:0, ram:0, disco:0, temp:null, lastSeen:new Date(_demoNow -  3*86400000).toISOString() },
-  { id:'demo-024', hw_id:'0326-0005', nombre:'Joseba Arregui',      alias:'Piso',   direccion:'Calle Iparragirre 31, 4D, Bilbao',cp:'48011', comunidad:'Bizkaia',  assigned_at:'2026-03-28T10:00:00Z', client_url:'https://joseba-arregui-0005.domotekan.com',       wg_ip:'10.10.0.36', online:false, cpu:0, ram:0, disco:0, temp:null, lastSeen:new Date(_demoNow -  8*86400000).toISOString() },
-  { id:'demo-025', hw_id:'0126-0003', nombre:'Amparo Castillo',     alias:'Casa',   direccion:'Calle Santa María 6, Lekeitio',   cp:'48280', comunidad:'Bizkaia',  assigned_at:'2026-01-28T10:00:00Z', client_url:'https://amparo-castillo-0003.domotekan.com',      wg_ip:'10.10.0.37', online:false, cpu:0, ram:0, disco:0, temp:null, lastSeen:new Date(_demoNow - 19*86400000).toISOString() },
-];
-const DEMO_MAP = Object.fromEntries(DEMO_SERVERS.map(s => [s.id, s]));
 
 // ==========================================
 // LECTURA DE DATOS — tabla hardware_devices
@@ -1247,7 +1276,6 @@ async function getServersWithStats() {
   const { data: servers, error: errSrv } = await Promise.race([baseQuery, timeout]).catch(e => ({ data: null, error: e }));
   if (errSrv) console.error('[getServersWithStats] hardware_devices error:', errSrv);
 
-  // Cargar último heartbeat por hw_id (identificador universal de instalación)
   const { data: hbs } = await sb.from('heartbeats')
     .select('hw_id, recibido_en, cpu, ram, disco, temperatura')
     .not('hw_id', 'is', null)
@@ -1255,44 +1283,29 @@ async function getServersWithStats() {
   const hbMap = {};
   (hbs || []).forEach(h => { if (!hbMap[h.hw_id]) hbMap[h.hw_id] = h; });
 
-  const real = (servers || []).map(s => {
+  return (servers || []).map(s => {
     const hb = s.hw_id ? hbMap[s.hw_id] : null;
     return {
       id:               s.id,
       hw_id:            s.hw_id || null,
       nombre:           s.client_name || s.alias || s.hw_id || '—',
+      client_name:      s.client_name || null,
       alias:            s.alias,
       direccion:        s.direccion,
+      cp:               s.cp || null,
+      comunidad:        s.comunidad || null,
+      pais:             s.pais || null,
       status:           s.status || 'pending',
       client_url:       s.client_url || null,
+      wg_ip:            s.wg_client_ip || null,
       instalador_nombre: s.assigned_by || 'Admin',
-      ultimo_heartbeat: (s.hw_id || '').startsWith('0626-0002')
-                          ? new Date().toISOString()
-                          : hb?.recibido_en || s.last_seen || null,
+      ultimo_heartbeat: hb?.recibido_en || s.last_seen || null,
       cpu_last:         hb?.cpu  ?? 0,
       ram_last:         hb?.ram  ?? 0,
       disco_last:       hb?.disco ?? 0,
       temperatura_last: hb?.temperatura ?? null
     };
   });
-  const demo = DEMO_SERVERS.map(d => ({
-    id:               d.id,
-    hw_id:            d.hw_id,
-    nombre:           d.nombre,
-    alias:            d.alias,
-    direccion:        d.direccion,
-    status:           'active',
-    client_url:       null,
-    instalador_nombre: 'Admin',
-    ultimo_heartbeat: d.online
-      ? new Date(Date.now() - Math.floor(Math.random() * 90000)).toISOString()
-      : d.lastSeen,
-    cpu_last:         d.cpu,
-    ram_last:         d.ram,
-    disco_last:       d.disco,
-    temperatura_last: d.temp,
-  }));
-  return [...real, ...demo];
 }
 
 // CHARTS
@@ -1466,81 +1479,7 @@ async function asignarEmpresaHardware(selectEl, id) {
 
 // DETAIL PANEL
 async function openDetailPanel(id) {
-  if (typeof id === 'string' && id.startsWith('demo-')) {
-    const d = DEMO_MAP[id];
-    if (!d) return;
-    const lastSeen = d.online
-      ? new Date(Date.now() - Math.floor(Math.random() * 90000)).toISOString()
-      : d.lastSeen;
-    const badgeClass = d.online ? 'online' : 'offline';
-    const badgeLabel = d.online ? 'Online' : 'Offline';
-    const isSuperadmin = currentProfile?.rol === 'superadmin';
-    let html = `
-      <button class="detail-close" onclick="closeDetailPanel()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-      <div><span class="badge ${badgeClass}"><span class="badge-dot"></span>${badgeLabel}</span></div>
-      <div class="detail-name">${d.nombre}</div>
-      <div class="detail-hwid">${d.hw_id}</div>
-      <div class="detail-section">
-        <div class="detail-section-title">Instalación</div>
-        <div class="detail-row"><span class="detail-label">Alias</span><span class="detail-value">${d.alias}</span></div>
-        <div class="detail-row"><span class="detail-label">Dirección</span><span class="detail-value">${d.direccion}</span></div>
-        <div class="detail-row"><span class="detail-label">CP</span><span class="detail-value">${d.cp}</span></div>
-        <div class="detail-row"><span class="detail-label">Comunidad</span><span class="detail-value">${d.comunidad}</span></div>
-        <div class="detail-row"><span class="detail-label">País</span><span class="detail-value">España</span></div>
-        <div class="detail-row"><span class="detail-label">Último contacto</span><span class="detail-value">${timeAgo(lastSeen)}</span></div>
-        <div class="detail-row"><span class="detail-label">Alta el</span><span class="detail-value">${new Date(d.assigned_at).toLocaleDateString('es-ES')}</span></div>
-      </div>
-      ${d.online ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Estado del servidor</div>
-        <div class="detail-row"><span class="detail-label">CPU</span><span class="detail-value">${d.cpu}%</span></div>
-        <div class="detail-row"><span class="detail-label">RAM</span><span class="detail-value">${d.ram}%</span></div>
-        <div class="detail-row"><span class="detail-label">Disco</span><span class="detail-value">${d.disco}%</span></div>
-        ${d.temp !== null ? `<div class="detail-row"><span class="detail-label">Temperatura</span><span class="detail-value">${d.temp}°C</span></div>` : ''}
-      </div>
-      <div class="detail-actions">
-        <button class="btn btn-green" onclick="window.open('${d.client_url}','_blank')" style="gap:6px">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          Conectar al servidor
-        </button>
-      </div>` : ''}
-      <div class="detail-section">
-        <div class="detail-section-title">Diagnóstico IA</div>
-        <button class="btn-diag" id="diag-btn-${d.id}" onclick="
-          document.getElementById('diag-btn-${d.id}').style.display='none';
-          document.getElementById('diag-result-${d.id}').innerHTML='<p style=\\'margin:0;font-size:13px;color:var(--ok-dark)\\'>✓ Sistema funcionando correctamente. CPU, RAM y temperatura dentro de parámetros normales. Sin alertas activas.</p>'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
-          </svg>
-          Diagnosticar con IA
-        </button>
-        <div class="diag-result" id="diag-result-${d.id}"></div>
-      </div>
-    `;
-    if (isSuperadmin) {
-      html += `
-      <div class="detail-section">
-        <div class="detail-section-title" style="color:var(--amber)">Solo administrador</div>
-        <div class="detail-row"><span class="detail-label">URL VPN</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:11px">${d.client_url}</span></div>
-        <div class="detail-row"><span class="detail-label">IP WireGuard</span><span class="detail-value" style="font-family:'DM Mono',monospace">${d.wg_ip}</span></div>
-      </div>
-      <div class="detail-actions">
-        <button class="action-btn" onclick="alert('Modo demo — edición no disponible')">✏️ Editar</button>
-        <button class="action-btn danger" onclick="alert('Modo demo — eliminación no disponible')">🗑️ Eliminar</button>
-      </div>`;
-    }
-    document.getElementById('detail-content').innerHTML = html;
-    document.getElementById('detail-panel').classList.add('open');
-    document.getElementById('detail-overlay').classList.add('open');
-    return;
-  }
-
-  const [{ data: r }, { data: hbs }] = await Promise.all([
-    sb.from('hardware_devices').select('*').eq('id', id).single(),
-    sb.from('heartbeats').select('recibido_en,cpu,ram,disco,temperatura').eq('hw_id', id.hw_id || '').order('recibido_en', { ascending: false }).limit(1)
-  ]);
+  const { data: r } = await sb.from('hardware_devices').select('*').eq('id', id).single();
   if (!r) return;
 
   const { data: hbData } = await sb.from('heartbeats')
@@ -1559,32 +1498,51 @@ async function openDetailPanel(id) {
   const nombre = r.client_name || r.alias || r.hw_id || '—';
   const safeName = nombre.replace(/'/g, "\\'");
 
+  const rCl = clProgress({ status: r.status, wg_ip: r.wg_client_ip, client_url: r.client_url });
+  const rPct = Math.round(rCl.done / rCl.tot * 100);
+  const CL_ITEMS_REAL = [
+    { label: 'Instalación creada', done: true },
+    { label: 'WireGuard generado', done: !!(r.wg_client_ip) || isActive },
+    { label: 'Nginx Proxy generado', done: !!(r.client_url) || isActive },
+    { label: 'HTTPS activado', done: !!(r.client_url && r.client_url.startsWith('https://')) },
+    { label: 'Config WireGuard descargada', done: isActive },
+    { label: 'HA conectado', done: isActive },
+    { label: 'Conector instalado', done: isActive },
+    { label: 'Entidades sincronizadas', done: isActive },
+    { label: 'Usuario cliente creado', done: false },
+    { label: 'Soporte remoto activo', done: false },
+  ];
+
   let html = `
     <button class="detail-close" onclick="closeDetailPanel()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <div><span class="badge ${badgeClass}"><span class="badge-dot"></span>${badgeLabel}</span></div>
     <div class="detail-name">${nombre}</div>
-    ${r.hw_id ? `<div class="detail-hwid">${r.hw_id}</div>` : ''}
+    ${r.hw_id ? `<div class="detail-hwid">${r.hw_id}${r.alias ? ' · ' + r.alias : ''}</div>` : ''}
 
     <div class="detail-section">
-      <div class="detail-section-title">Instalación</div>
+      <div class="detail-section-title">Datos del cliente</div>
       ${r.alias     ? `<div class="detail-row"><span class="detail-label">Alias</span><span class="detail-value">${r.alias}</span></div>` : ''}
       ${r.direccion ? `<div class="detail-row"><span class="detail-label">Dirección</span><span class="detail-value">${r.direccion}</span></div>` : ''}
       ${r.cp        ? `<div class="detail-row"><span class="detail-label">CP</span><span class="detail-value">${r.cp}</span></div>` : ''}
       ${r.comunidad ? `<div class="detail-row"><span class="detail-label">Comunidad</span><span class="detail-value">${r.comunidad}</span></div>` : ''}
       ${r.pais      ? `<div class="detail-row"><span class="detail-label">País</span><span class="detail-value">${r.pais}</span></div>` : ''}
-      <div class="detail-row"><span class="detail-label">Último contacto</span><span class="detail-value">${lastSeen ? timeAgo(lastSeen) : '—'}</span></div>
       ${r.assigned_at ? `<div class="detail-row"><span class="detail-label">Alta el</span><span class="detail-value">${new Date(r.assigned_at).toLocaleDateString('es-ES')}</span></div>` : ''}
     </div>
-    ${hb ? `
+
     <div class="detail-section">
-      <div class="detail-section-title">Estado del servidor</div>
+      <div class="detail-section-title">Datos técnicos</div>
+      ${r.hw_id ? `<div class="detail-row"><span class="detail-label">HW ID</span><span class="detail-value" style="font-family:'DM Mono',monospace">${r.hw_id}</span></div>` : ''}
+      ${r.client_url ? `<div class="detail-row"><span class="detail-label">URL panel</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:11px"><a href="${r.client_url}" target="_blank" style="color:var(--blue)">${r.client_url}</a></span></div>` : ''}
+      ${r.wg_client_ip ? `<div class="detail-row"><span class="detail-label">IP WireGuard</span><span class="detail-value" style="font-family:'DM Mono',monospace">${r.wg_client_ip}</span></div>` : ''}
+      <div class="detail-row"><span class="detail-label">Último contacto</span><span class="detail-value">${lastSeen ? timeAgo(lastSeen) : '—'}</span></div>
+      ${hb ? `
       <div class="detail-row"><span class="detail-label">CPU</span><span class="detail-value">${Math.round(hb.cpu||0)}%</span></div>
       <div class="detail-row"><span class="detail-label">RAM</span><span class="detail-value">${Math.round(hb.ram||0)}%</span></div>
       <div class="detail-row"><span class="detail-label">Disco</span><span class="detail-value">${Math.round(hb.disco||0)}%</span></div>
-      <div class="detail-row"><span class="detail-label">Temperatura</span><span class="detail-value">${Math.round(hb.temperatura||0)}°C</span></div>
-    </div>` : ''}
+      <div class="detail-row"><span class="detail-label">Temperatura</span><span class="detail-value">${Math.round(hb.temperatura||0)}°C</span></div>` : ''}
+    </div>
     `;
 
   if (isActive && r.client_url) {
@@ -1596,6 +1554,20 @@ async function openDetailPanel(id) {
       </button>
     </div>`;
   }
+
+  html += `
+    <div class="detail-section">
+      <div class="detail-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Puesta en marcha</span>
+        <span style="font-size:11px;font-weight:600;font-family:'DM Mono',monospace;color:${rPct===100?'var(--ok-dark)':'var(--amber)'}">${rCl.done}/${rCl.tot}</span>
+      </div>
+      ${CL_ITEMS_REAL.map(it => `
+      <div class="cl-row">
+        <div class="cl-ic ${it.done ? 'cl-done' : 'cl-pend'}">${it.done ? '✓' : '·'}</div>
+        <span class="cl-label ${it.done ? '' : 'pend'}">${it.label}</span>
+        <span class="cl-status ${it.done ? 'done' : 'pend'}">${it.done ? 'Listo' : 'Pendiente'}</span>
+      </div>`).join('')}
+    </div>`;
 
   if (isActive) {
     html += `
@@ -1613,11 +1585,6 @@ async function openDetailPanel(id) {
 
   if (isSuperadmin) {
     html += `
-    <div class="detail-section">
-      <div class="detail-section-title" style="color:var(--amber)">Solo administrador</div>
-      ${r.client_url  ? `<div class="detail-row"><span class="detail-label">URL VPN</span><span class="detail-value" style="font-family:'DM Mono',monospace;font-size:11px">${r.client_url}</span></div>` : ''}
-      ${r.wg_client_ip ? `<div class="detail-row"><span class="detail-label">IP WireGuard</span><span class="detail-value" style="font-family:'DM Mono',monospace">${r.wg_client_ip}</span></div>` : ''}
-    </div>
     <div class="detail-actions">
       <button class="action-btn" onclick="closeDetailPanel();openEditModal('${r.id}')">✏️ Editar</button>
       <button class="action-btn danger" onclick="closeDetailPanel();eliminarInstalacion('${r.id}','${safeName}','${r.hw_id || ''}')">🗑️ Eliminar</button>
@@ -1640,14 +1607,14 @@ async function loadServers() {
   if (_loadServersInProgress) return;
   _loadServersInProgress = true;
   const tbody = document.getElementById('servers-body');
-  tbody.innerHTML = '<tr><td colspan="9" class="loading">Cargando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" class="loading">Cargando...</td></tr>';
   try {
     const servers = await getServersWithStats();
-    if (!servers.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">No hay servidores registrados</td></tr>'; return; }
+    if (!servers.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay servidores registrados</td></tr>'; return; }
     tbody.innerHTML = servers.map(s => serverRow(s)).join('');
   } catch (e) {
     console.error('[loadServers] error:', e);
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">Error al cargar los datos. <button onclick="loadServers()" style="margin-left:8px;padding:4px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);cursor:pointer;font-size:12px">Reintentar</button></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Error al cargar los datos. <button onclick="loadServers()" style="margin-left:8px;padding:4px 12px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);cursor:pointer;font-size:12px">Reintentar</button></td></tr>';
   } finally {
     _loadServersInProgress = false;
   }
