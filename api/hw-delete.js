@@ -1,16 +1,22 @@
 // Vercel Serverless Function — POST /api/hw-delete
 // Proxy seguro para eliminar instalaciones via n8n.
 // Verifica sesión Supabase + rol superadmin antes de llamar al webhook.
-// El token de n8n nunca sale del servidor (variable de entorno N8N_ADMIN_TOKEN).
+// El token de n8n nunca sale del servidor (variable de entorno N8N_DELETE_TOKEN).
 //
 // Variables de entorno requeridas en Vercel:
 //   SUPABASE_URL, SUPABASE_SERVICE_KEY  — ya existentes
-//   N8N_ADMIN_TOKEN                     — el token que antes estaba hardcodeado
+//   N8N_DELETE_TOKEN                    — token para el webhook de borrado
+//                                         debe coincidir con el Header Auth configurado en n8n WF5
 //   N8N_WEBHOOK_DELETE (opcional)       — URL del webhook (tiene fallback)
+//
+// Configuración necesaria en n8n WF5:
+//   Webhook node → Authentication → Header Auth
+//   Header Name:  X-Admin-Token
+//   Header Value: <mismo valor que N8N_DELETE_TOKEN>
 
 const SUPABASE_URL        = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const N8N_ADMIN_TOKEN     = process.env.N8N_ADMIN_TOKEN;
+const N8N_DELETE_TOKEN    = process.env.N8N_DELETE_TOKEN;
 const N8N_WEBHOOK_DELETE  = process.env.N8N_WEBHOOK_DELETE
   || 'https://n8n.domotekan.com/webhook/hw-delete';
 
@@ -42,8 +48,8 @@ module.exports = async function handler(req, res) {
   if (!hw_id || !auth_token)
     return res.status(400).json({ error: 'Faltan parámetros: hw_id y auth_token son obligatorios' });
 
-  if (!N8N_ADMIN_TOKEN)
-    return res.status(500).json({ error: 'N8N_ADMIN_TOKEN no configurado en el servidor' });
+  if (!N8N_DELETE_TOKEN)
+    return res.status(500).json({ error: 'N8N_DELETE_TOKEN no configurado en el servidor' });
 
   // 1. Verificar sesión Supabase
   const authCheck = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
@@ -70,17 +76,32 @@ module.exports = async function handler(req, res) {
   if (!profile || profile.rol !== 'superadmin')
     return res.status(403).json({ error: 'Permiso denegado. Se requiere rol superadmin.' });
 
-  // 3. Llamar al webhook de n8n con el token desde variables de entorno
+  // 3. Llamar al webhook de n8n — token en header, nunca en el body
   const resp = await fetch(N8N_WEBHOOK_DELETE, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ hw_id, admin_token: N8N_ADMIN_TOKEN }),
+    headers: {
+      'Content-Type':  'application/json',
+      'X-Admin-Token': N8N_DELETE_TOKEN,
+    },
+    body:    JSON.stringify({ hw_id }),
     signal:  AbortSignal.timeout(30000),
   }).catch(() => null);
 
-  if (!resp?.ok) {
-    const status = resp?.status ?? 'timeout';
-    return res.status(502).json({ error: `n8n respondió ${status}. Comprueba que el workflow está activo.` });
+  if (!resp) {
+    return res.status(504).json({ error: 'n8n no respondió (timeout). Comprueba que WF5 está activo.' });
+  }
+
+  let respData = {};
+  try {
+    const txt = await resp.text();
+    if (txt && txt.trim()) respData = JSON.parse(txt);
+  } catch (_) { /* body vacío o no-JSON */ }
+
+  if (!resp.ok) {
+    return res.status(502).json({
+      error: respData.error || respData.message
+        || `n8n respondió HTTP ${resp.status}. Comprueba que WF5 está activo en n8n.`,
+    });
   }
 
   // Audit log (fire-and-forget — no bloquea la respuesta)

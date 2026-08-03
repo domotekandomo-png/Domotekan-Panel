@@ -1146,7 +1146,7 @@ async function eliminarInstalacion(id, nombre, hwId) {
       loadServers();
     } catch (e) {
       console.error('[eliminar]', e);
-      showToast('❌ Error al eliminar. Comprueba n8n.');
+      showToast('❌ ' + (e.message || 'Error al eliminar. Comprueba n8n.'));
     }
   } else {
     // Sin hw_id (entrada manual sin hardware): borrar solo en Supabase
