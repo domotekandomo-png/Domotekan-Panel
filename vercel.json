@@ -1,4 +1,9 @@
 {
+  "rewrites": [
+    { "source": "/gestion",  "destination": "/index.html" },
+    { "source": "/register", "destination": "/invitacion.html" },
+    { "source": "/",         "destination": "/panel-estandar.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
