@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Domotekan — Activa tu acceso al panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #1D9E75;
+  --green-light: #E1F5EE;
+  --green-dark: #0F6E56;
+  --red: #D85A30;
+  --red-light: #FAECE7;
+  --bg: #F7F6F3;
+  --surface: #FFFFFF;
+  --border: rgba(0,0,0,0.08);
+  --border-strong: rgba(0,0,0,0.14);
+  --text: #1A1A18;
+  --text-2: #6B6B67;
+  --text-3: #9E9E99;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+
+.card {
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.logo { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.logo span { color: var(--green); }
+.subtitle { font-size: 13px; color: var(--text-2); margin-bottom: 28px; line-height: 1.5; }
+.role-pill {
+  display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 4px 10px; border-radius: 999px; background: var(--green-light); color: var(--green-dark); margin-bottom: 16px;
+}
+
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.field input {
+  width: 100%; padding: 10px 14px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; color: var(--text);
+  background: var(--bg); outline: none; transition: border-color 0.15s;
+}
+.field input:focus { border-color: var(--green); background: #fff; }
+
+.pw-strength { margin-top: 6px; display: flex; gap: 4px; }
+.pw-bar { flex: 1; height: 3px; border-radius: 2px; background: var(--border-strong); transition: background 0.2s; }
+.pw-bar.weak   { background: var(--red); }
+.pw-bar.medium { background: #BA7517; }
+.pw-bar.strong { background: var(--green); }
+
+.btn-primary {
+  width: 100%; padding: 11px;
+  background: var(--green); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: background 0.15s;
+}
+.btn-primary:hover:not(:disabled) { background: var(--green-dark); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.divider { border: none; border-top: 0.5px solid var(--border); margin: 20px 0; }
+
+.msg { font-size: 12px; margin-top: 12px; text-align: center; min-height: 18px; line-height: 1.5; }
+.msg.err { color: var(--red); }
+.msg.ok  { color: var(--green-dark); }
+
+.success-screen, .invalid-screen { text-align: center; }
+.success-icon, .invalid-icon {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+}
+.success-icon { background: var(--green-light); color: var(--green); }
+.invalid-icon { background: var(--red-light); color: var(--red); }
+.success-icon svg, .invalid-icon svg { width: 28px; height: 28px; }
+.success-title, .invalid-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.success-sub, .invalid-sub { font-size: 13px; color: var(--text-2); margin-bottom: 24px; line-height: 1.5; }
+.btn-goto {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 11px 24px; background: var(--green); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  cursor: pointer; text-decoration: none; transition: background 0.15s;
+}
+.btn-goto:hover { background: var(--green-dark); }
+
+.loading-screen { text-align: center; color: var(--text-2); font-size: 13px; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div id="view-loading">
+    <div class="logo">Domo<span>tekan</span></div>
+    <div class="loading-screen">Comprobando tu invitación…</div>
+  </div>
+
+  <div id="view-invalid" style="display:none"></div>
+
+  <div id="view-form" style="display:none">
+    <svg width="38" height="38" viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round" style="display:block;margin-bottom:6px">
+      <path d="M2 8.5L10 2l8 6.5V18a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8.5z"/>
+      <path d="M6.5 14a4 4 0 0 1 7 0"/><path d="M8.2 15.8a2 2 0 0 1 3.6 0"/>
+      <circle cx="10" cy="17.2" r="0.55" fill="var(--green)" stroke="none"/>
+    </svg>
+    <div class="logo">Domo<span>tekan</span></div>
+    <span class="role-pill" id="role-pill">Acceso</span>
+    <div class="subtitle">Crea tu acceso al panel de gestión.<br>Solo tú tendrás estas credenciales.</div>
+
+    <div class="field">
+      <label>Tu nombre</label>
+      <input type="text" id="f-nombre" placeholder="Nombre y apellidos" autocomplete="name">
+    </div>
+    <div class="field">
+      <label>Tu email</label>
+      <input type="email" id="f-email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="field" id="f-empresa-wrap" style="display:none">
+      <label>Nombre de la empresa</label>
+      <input type="text" id="f-empresa" placeholder="Nombre de tu empresa" autocomplete="organization">
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="f-pass" placeholder="Mínimo 8 caracteres" autocomplete="new-password"
+             oninput="updateStrength(this.value)">
+      <div class="pw-strength">
+        <div class="pw-bar" id="pw1"></div>
+        <div class="pw-bar" id="pw2"></div>
+        <div class="pw-bar" id="pw3"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Repite la contraseña</label>
+      <input type="password" id="f-pass2" placeholder="••••••••" autocomplete="new-password">
+    </div>
+
+    <button class="btn-primary" id="reg-btn" onclick="register()">Activar mi acceso</button>
+    <div class="msg" id="reg-msg"></div>
+  </div>
+
+  <div id="view-success" style="display:none"></div>
+</div>
+
+<script>
+const sb = supabase.createClient(
+  'https://xsidbxnrtvjgjhoscyqp.supabase.co',
+  'sb_publishable__k8db4ohZo7ldZt30dpwkA_0nyQuD3F'
+);
+
+const token = new URLSearchParams(location.search).get('invite') || '';
+let inviteRol = null;
+
+const ROLE_LABEL = { admin: 'Instalador', user: 'Trabajador del instalador' };
+
+(async function init() {
+  if (!token) return showInvalid('Falta el token de invitación en el enlace.');
+
+  // Validación vía función SECURITY DEFINER (RPC) — el cliente anon nunca
+  // accede a las tablas invitaciones/usuarios directamente, solo invoca la función.
+  const { data: rol, error: rpcErr } = await sb.rpc('validar_invitacion', { p_token: token });
+
+  if (rpcErr) return showInvalid(rpcErr.message || 'Este enlace de invitación no es válido.');
+
+  inviteRol = rol;
+  document.getElementById('role-pill').textContent = ROLE_LABEL[inviteRol] || 'Acceso';
+  if (inviteRol === 'admin') {
+    document.getElementById('f-empresa-wrap').style.display = '';
+  }
+  document.getElementById('view-loading').style.display = 'none';
+  document.getElementById('view-form').style.display = '';
+})();
+
+function showInvalid(message) {
+  document.getElementById('view-loading').style.display = 'none';
+  document.getElementById('view-invalid').innerHTML = `
+    <div class="invalid-screen">
+      <div class="invalid-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </div>
+      <div class="logo" style="justify-content:center;display:flex">Domo<span>tekan</span></div>
+      <div class="invalid-title" style="margin-top:12px">Enlace no disponible</div>
+      <div class="invalid-sub">${message}</div>
+      <div class="invalid-sub" style="margin-top:-8px">Pide a quien te invitó que genere un nuevo enlace.</div>
+    </div>`;
+  document.getElementById('view-invalid').style.display = '';
+}
+
+async function register() {
+  const nombre  = document.getElementById('f-nombre')?.value.trim();
+  const email   = document.getElementById('f-email')?.value.trim();
+  const empresa = document.getElementById('f-empresa')?.value.trim();
+  const pass    = document.getElementById('f-pass')?.value;
+  const pass2   = document.getElementById('f-pass2')?.value;
+  const msgEl   = document.getElementById('reg-msg');
+  const btn     = document.getElementById('reg-btn');
+
+  msgEl.className = 'msg';
+  msgEl.textContent = '';
+
+  if (!nombre)              { msgEl.className='msg err'; msgEl.textContent='Introduce tu nombre.'; return; }
+  if (!email)               { msgEl.className='msg err'; msgEl.textContent='Introduce tu email.'; return; }
+  if (!isValidEmail(email)) { msgEl.className='msg err'; msgEl.textContent='El email no tiene un formato válido.'; return; }
+  if (inviteRol === 'admin' && !empresa) { msgEl.className='msg err'; msgEl.textContent='Introduce el nombre de tu empresa.'; return; }
+  if (!pass || pass.length < 8) { msgEl.className='msg err'; msgEl.textContent='La contraseña debe tener al menos 8 caracteres.'; return; }
+  if (pass !== pass2)       { msgEl.className='msg err'; msgEl.textContent='Las contraseñas no coinciden.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Creando tu acceso…';
+
+  // Alta estándar vía Supabase Auth (signUp con clave pública, sin permisos elevados)
+  const emailNorm = email.toLowerCase();
+  const { data: signUpData, error: signUpError } = await sb.auth.signUp({
+    email: emailNorm, password: pass, options: { data: { nombre } }
+  });
+
+  if (signUpError) {
+    msgEl.className = 'msg err';
+    msgEl.textContent = signUpError.message || 'Error al crear la cuenta. Inténtalo de nuevo.';
+    btn.disabled = false; btn.textContent = 'Activar mi acceso';
+    return;
+  }
+
+  const newUserId = signUpData?.user?.id;
+  if (!newUserId) {
+    msgEl.className = 'msg err';
+    msgEl.textContent = 'Revisa tu email para confirmar la cuenta y vuelve a este enlace.';
+    btn.disabled = false; btn.textContent = 'Activar mi acceso';
+    return;
+  }
+
+  // Completa el alta vía RPC: crea el perfil en usuarios (y la empresa, si procede)
+  // y consume el token de un solo uso, de forma atómica
+  const { error: rpcErr } = await sb.rpc('completar_invitacion', {
+    p_token: token, p_user_id: newUserId, p_email: emailNorm, p_nombre: nombre,
+    p_empresa_nombre: inviteRol === 'admin' ? empresa : null
+  });
+
+  if (rpcErr) {
+    msgEl.className = 'msg err';
+    msgEl.textContent = 'Cuenta creada pero no se pudo activar el perfil: ' + rpcErr.message;
+    btn.disabled = false; btn.textContent = 'Activar mi acceso';
+    return;
+  }
+
+  const loggedIn = !!signUpData.session;
+  renderSuccess(loggedIn);
+  if (loggedIn) {
+    setTimeout(() => { window.location.href = '/gestion'; }, 2000);
+  }
+}
+
+function renderSuccess(autoRedirecting) {
+  document.getElementById('view-form').style.display = 'none';
+  document.getElementById('view-success').innerHTML = `
+    <div class="success-screen">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <div class="success-title">¡Todo listo!</div>
+      <div class="success-sub">Tu acceso al panel de gestión está activado.</div>
+      ${autoRedirecting
+        ? `<div class="msg ok">Entrando en el panel…</div>`
+        : `<a class="btn-goto" href="/gestion">Entrar al panel</a>`
+      }
+    </div>`;
+  document.getElementById('view-success').style.display = '';
+}
+
+function updateStrength(pw) {
+  const bars  = [document.getElementById('pw1'), document.getElementById('pw2'), document.getElementById('pw3')];
+  const score = pw.length >= 12 && /[^a-zA-Z0-9]/.test(pw) ? 3
+              : pw.length >= 10 ? 2
+              : pw.length >=  8 ? 1 : 0;
+  const cls   = ['', 'weak', 'medium', 'strong'];
+  bars.forEach((b, i) => { b.className = 'pw-bar' + (i < score ? ' ' + cls[score] : ''); });
+}
+
+function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+document.getElementById('f-pass2')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') register();
+});
+</script>
+</body>
+</html>
