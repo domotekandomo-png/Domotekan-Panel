@@ -367,6 +367,64 @@ td { padding: 14px 16px; font-size: 13px; color: var(--text); vertical-align: mi
 /* Filas de tabla clicables */
 tbody tr { cursor: pointer; transition: background 0.1s; }
 tbody tr:hover { background: var(--bg); }
+
+/* SERVER DETAIL VIEW */
+.sdv-header {
+  display: flex; align-items: center; gap: 12px;
+  padding-bottom: 20px; border-bottom: 0.5px solid var(--border); margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.sdv-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm); cursor: pointer;
+  color: var(--text-2); font-family: inherit; font-size: 13px;
+  padding: 7px 12px; transition: background 0.1s, color 0.1s; flex-shrink: 0;
+}
+.sdv-back:hover { background: var(--bg); color: var(--text); }
+.sdv-back svg { width: 14px; height: 14px; }
+.sdv-title-block { flex: 1; min-width: 0; }
+.sdv-title { font-size: 20px; font-weight: 500; }
+.sdv-subtitle { font-size: 12px; color: var(--text-3); font-family: 'DM Mono', monospace; margin-top: 2px; }
+.sdv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.sdv-card {
+  background: var(--surface); border: 0.5px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.sdv-card-title {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-3); margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sdv-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+.sdv-row:last-child { border-bottom: none; }
+.sdv-label { font-size: 12px; color: var(--text-3); flex-shrink: 0; padding-right: 12px; }
+.sdv-value { font-size: 13px; color: var(--text); text-align: right; }
+.res-bar-row { padding: 6px 0; border-bottom: 0.5px solid var(--border); }
+.res-bar-row:last-of-type { border-bottom: none; }
+.res-bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.res-bar-label { font-size: 12px; color: var(--text-3); }
+.res-bar-value { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text); }
+.res-bar-value.warn { color: var(--amber); }
+.res-bar-value.danger { color: var(--red); }
+.res-bar-track { height: 4px; background: var(--border-strong); border-radius: 2px; overflow: hidden; }
+.res-bar-fill { height: 100%; border-radius: 2px; }
+.res-bar-fill.ok { background: var(--ok); }
+.res-bar-fill.warn { background: var(--amber); }
+.res-bar-fill.danger { background: var(--red); }
+.sdv-domocon-stats { display: flex; gap: 32px; margin-bottom: 16px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 0.5px solid var(--border); }
+.sdv-domocon-stat-label { font-size: 11px; color: var(--text-3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
+.sdv-domocon-stat-value { font-size: 14px; font-weight: 500; }
+.sdv-domocon-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.sdv-domocon-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface); color: var(--text); transition: background 0.1s;
+}
+.sdv-domocon-btn:hover { background: var(--bg); }
+.sdv-domocon-btn svg { width: 13px; height: 13px; }
 </style>
 </head>
 <body>
@@ -498,6 +556,7 @@ tbody tr:hover { background: var(--bg); }
     </div>
 
     <div class="page" id="page-servers">
+      <div id="servers-list-view">
       <div class="topbar">
         <h1>Servidores</h1>
         <div class="topbar-actions">
@@ -532,6 +591,8 @@ tbody tr:hover { background: var(--bg); }
           </table>
         </div>
       </div>
+      </div><!-- /servers-list-view -->
+      <div id="servers-detail-view" style="display:none"></div>
     </div>
 
     <div class="page superadmin-only" id="page-installers">
@@ -1260,7 +1321,7 @@ function serverRow(s) {
     </div>
   </td>`;
 
-  return `<tr onclick="openDetailPanel('${s.id}')">${row}</tr>`;
+  return `<tr onclick="openServerDetail('${s.id}')">${row}</tr>`;
 }
 
 // ==========================================
@@ -1597,11 +1658,195 @@ function closeDetailPanel() {
   document.getElementById('detail-overlay').classList.remove('open');
 }
 
+// FULL-PAGE SERVER DETAIL VIEW
+async function openServerDetail(id) {
+  const sdv = document.getElementById('servers-detail-view');
+  const slv = document.getElementById('servers-list-view');
+  sdv.innerHTML = '<div class="loading" style="padding:60px">Cargando...</div>';
+  slv.style.display = 'none';
+  sdv.style.display = 'block';
+
+  const { data: r } = await sb.from('hardware_devices').select('*').eq('id', id).single();
+  if (!r) { sdv.innerHTML = '<div class="empty">No se encontró la instalación.</div>'; return; }
+
+  const { data: hbData } = await sb.from('heartbeats')
+    .select('recibido_en,cpu,ram,disco,temperatura')
+    .eq('hw_id', r.hw_id || '')
+    .order('recibido_en', { ascending: false })
+    .limit(1);
+  const hb = hbData?.[0] || null;
+  const lastSeen = hb?.recibido_en || r.last_seen;
+
+  const isSuperadmin = currentProfile?.rol === 'superadmin';
+  const isActive = r.status === 'active';
+  const online = isActive && isOnline(lastSeen);
+  const badgeClass = !isActive ? 'warn' : (online ? 'online' : 'offline');
+  const badgeLabel = !isActive ? 'Sin asignar' : (online ? 'Online' : 'Offline');
+  const nombre = r.alias || r.client_name || r.hw_id || '—';
+  const safeName = nombre.replace(/'/g, "\\'");
+  const displaySub = (r.client_name && r.alias && r.client_name !== r.alias) ? r.client_name : '';
+
+  const rCl = clProgress({ status: r.status, wg_ip: r.wg_client_ip, client_url: r.client_url });
+  const rPct = Math.round(rCl.done / rCl.tot * 100);
+  const CL_ITEMS = [
+    { label: 'Instalación creada',         done: true },
+    { label: 'WireGuard generado',          done: !!(r.wg_client_ip) || isActive },
+    { label: 'Nginx Proxy generado',        done: !!(r.client_url) || isActive },
+    { label: 'HTTPS activado',              done: !!(r.client_url && r.client_url.startsWith('https://')) },
+    { label: 'Config WireGuard descargada', done: isActive },
+    { label: 'HA conectado',                done: isActive },
+    { label: 'Conector instalado',          done: isActive },
+    { label: 'Entidades sincronizadas',     done: isActive },
+    { label: 'Usuario cliente creado',      done: false },
+    { label: 'Soporte remoto activo',       done: false },
+  ];
+
+  function resBar(label, val) {
+    const pct = Math.round(val || 0);
+    const cls = pct >= 85 ? 'danger' : pct >= 70 ? 'warn' : 'ok';
+    return `<div class="res-bar-row">
+      <div class="res-bar-header">
+        <span class="res-bar-label">${label}</span>
+        <span class="res-bar-value ${cls}">${pct}%</span>
+      </div>
+      <div class="res-bar-track"><div class="res-bar-fill ${cls}" style="width:${pct}%"></div></div>
+    </div>`;
+  }
+
+  sdv.innerHTML = `
+    <div class="sdv-header">
+      <button class="sdv-back" onclick="closeServerDetail()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        Servidores
+      </button>
+      <div class="sdv-title-block">
+        <div class="sdv-title">${nombre}</div>
+        ${displaySub || r.hw_id ? `<div class="sdv-subtitle">${[displaySub, r.hw_id].filter(Boolean).join(' · ')}</div>` : ''}
+      </div>
+      <span class="badge ${badgeClass}"><span class="badge-dot"></span>${badgeLabel}</span>
+      ${isSuperadmin ? `
+        <button class="action-btn" onclick="closeServerDetail();openEditModal('${r.id}')">✏️ Editar</button>
+        <button class="action-btn danger" onclick="closeServerDetail();eliminarInstalacion('${r.id}','${safeName}','${r.hw_id || ''}')">🗑️ Eliminar</button>
+      ` : ''}
+    </div>
+
+    <div class="sdv-body">
+      <div class="sdv-grid">
+        <div class="sdv-card">
+          <div class="sdv-card-title">Datos técnicos</div>
+          ${r.client_url ? `<div class="sdv-row">
+            <span class="sdv-label">URL panel</span>
+            <span class="sdv-value" style="font-family:'DM Mono',monospace;font-size:11px">
+              <a href="${r.client_url}" target="_blank" style="color:var(--blue);text-decoration:none">${r.client_url}</a>
+            </span>
+          </div>` : ''}
+          ${r.wg_client_ip ? `<div class="sdv-row">
+            <span class="sdv-label">IP WireGuard</span>
+            <span class="sdv-value" style="font-family:'DM Mono',monospace">${r.wg_client_ip}</span>
+          </div>` : ''}
+          <div class="sdv-row">
+            <span class="sdv-label">Último contacto</span>
+            <span class="sdv-value">${lastSeen ? timeAgo(lastSeen) : '—'}</span>
+          </div>
+          ${hb ? `<div style="margin-top:10px">
+            ${resBar('CPU', hb.cpu)}
+            ${resBar('RAM', hb.ram)}
+            ${resBar('Disco', hb.disco)}
+            <div class="res-bar-row" style="border-bottom:none">
+              <div class="res-bar-header">
+                <span class="res-bar-label">Temperatura</span>
+                <span class="res-bar-value ${(hb.temperatura||0)>=80?'danger':(hb.temperatura||0)>=70?'warn':''}">${Math.round(hb.temperatura||0)}°C</span>
+              </div>
+            </div>
+          </div>` : '<div style="padding:12px 0;font-size:12px;color:var(--text-3)">Sin datos de recursos</div>'}
+          ${isActive && r.client_url ? `<div style="margin-top:16px">
+            <button class="btn btn-green" style="width:100%;justify-content:center"
+              onclick="window.open('${r.client_url}','_blank')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+              Conectar al servidor
+            </button>
+          </div>` : ''}
+        </div>
+
+        <div class="sdv-card">
+          <div class="sdv-card-title">
+            <span>Puesta en marcha</span>
+            <span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:${rPct===100?'var(--ok-dark)':'var(--amber)'}">${rCl.done}/${rCl.tot}</span>
+          </div>
+          ${CL_ITEMS.map(it => `
+            <div class="cl-row">
+              <div class="cl-ic ${it.done?'cl-done':'cl-pend'}">${it.done?'✓':'·'}</div>
+              <span class="cl-label ${it.done?'':'pend'}">${it.label}</span>
+              <span class="cl-status ${it.done?'done':'pend'}">${it.done?'Listo':'Pendiente'}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="sdv-card" style="margin-bottom:16px">
+        <div class="sdv-card-title">Domoconector</div>
+        <div class="sdv-domocon-stats">
+          <div>
+            <div class="sdv-domocon-stat-label">Estado</div>
+            <div class="sdv-domocon-stat-value" style="color:var(--text-3)">Sin conectar</div>
+          </div>
+          <div>
+            <div class="sdv-domocon-stat-label">Última sincronización</div>
+            <div class="sdv-domocon-stat-value" style="color:var(--text-3)">—</div>
+          </div>
+          <div>
+            <div class="sdv-domocon-stat-label">Entidades detectadas</div>
+            <div class="sdv-domocon-stat-value" style="color:var(--text-3)">—</div>
+          </div>
+        </div>
+        <div class="sdv-domocon-actions">
+          <button class="sdv-domocon-btn" onclick="showToast('Pendiente de conectar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Sincronizar entidades
+          </button>
+          <button class="sdv-domocon-btn" onclick="showToast('Pendiente de conectar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            Ver entidades
+          </button>
+          <button class="sdv-domocon-btn" onclick="showToast('Pendiente de conectar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            Integrar dispositivos
+          </button>
+          <button class="sdv-domocon-btn" onclick="showToast('Pendiente de conectar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+            Diagnóstico
+          </button>
+        </div>
+      </div>
+
+      ${isActive ? `<div class="sdv-card">
+        <div class="sdv-card-title">Diagnóstico IA</div>
+        <button class="btn-diag" id="diag-btn-${r.id}" onclick="runDiagnosis('${r.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
+          </svg>
+          Diagnosticar con IA
+        </button>
+        <div class="diag-result" id="diag-result-${r.id}"></div>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+function closeServerDetail() {
+  document.getElementById('servers-detail-view').style.display = 'none';
+  document.getElementById('servers-list-view').style.display = '';
+}
+
 // SERVERS
 let _loadServersInProgress = false;
 async function loadServers() {
   if (_loadServersInProgress) return;
   _loadServersInProgress = true;
+  document.getElementById('servers-list-view').style.display = '';
+  document.getElementById('servers-detail-view').style.display = 'none';
   const tbody = document.getElementById('servers-body');
   tbody.innerHTML = '<tr><td colspan="7" class="loading">Cargando...</td></tr>';
   try {
