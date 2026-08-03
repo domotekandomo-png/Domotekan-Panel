@@ -987,7 +987,8 @@ async function guardarInstalacion() {
   msgEl.textContent = '⏳ Creando VPN y DNS… esto tarda unos segundos.';
 
   try {
-    const res = await fetch('https://n8n.domotekan.com/webhook/provisionar', {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch('/api/hw-provision', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -998,16 +999,12 @@ async function guardarInstalacion() {
         cp,
         comunidad:    com,
         pais,
-        assigned_by:  currentProfile?.email || ''
+        assigned_by:  currentProfile?.email || '',
+        auth_token:   session?.access_token
       })
     });
 
-    // Leer body de forma segura — n8n puede devolver body vacío si el workflow falla
-    let data = {};
-    try {
-      const txt = await res.text();
-      if (txt && txt.trim()) data = JSON.parse(txt);
-    } catch (_) { /* body vacío o no-JSON */ }
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok || !data.ok) {
       throw new Error(data.error || data.message || 'El workflow n8n no respondió correctamente (HTTP ' + res.status + '). Comprueba que WF3 está activo en n8n.');
@@ -1016,7 +1013,6 @@ async function guardarInstalacion() {
     msgEl.style.color = 'var(--ok)';
     msgEl.textContent = '✅ Instalación activada — ' + data.client_url;
     showToast('✅ ' + cliente + ' dado de alta');
-    await auditLog('hw_create', hw_id, { client_name: cliente });
 
     // Capturar WAN IP del instalador (que está en casa del cliente) para restringir el registro,
     // y etiquetar el hardware con la empresa de quien lo está dando de alta
