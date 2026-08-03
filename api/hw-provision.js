@@ -6,12 +6,17 @@
 // Variables de entorno requeridas en Vercel:
 //   SUPABASE_URL, SUPABASE_SERVICE_KEY  — ya existentes
 //   N8N_PROVISION_TOKEN                 — token para el webhook de provisioning
-//     (fallback: N8N_ADMIN_TOKEN si N8N_PROVISION_TOKEN no está definido)
+//                                         debe coincidir con el Header Auth configurado en n8n
 //   N8N_WEBHOOK_PROVISION (opcional)    — URL del webhook (tiene fallback hardcodeado)
+//
+// Configuración necesaria en n8n:
+//   Workflow de provisioning → nodo Webhook → Authentication → Header Auth
+//   Header Name:  X-Admin-Token
+//   Header Value: <mismo valor que N8N_PROVISION_TOKEN>
 
 const SUPABASE_URL         = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const N8N_TOKEN            = process.env.N8N_PROVISION_TOKEN || process.env.N8N_ADMIN_TOKEN;
+const N8N_TOKEN            = process.env.N8N_PROVISION_TOKEN;
 const N8N_WEBHOOK_PROVISION = process.env.N8N_WEBHOOK_PROVISION
   || 'https://n8n.domotekan.com/webhook/provisionar';
 
@@ -76,20 +81,22 @@ module.exports = async function handler(req, res) {
   if (!profile.activo)
     return res.status(403).json({ error: 'Usuario inactivo. Contacta con el administrador.' });
 
-  // 3. Llamar al webhook de n8n con el token desde variables de entorno
+  // 3. Llamar al webhook de n8n — token en header, nunca en el body
   const n8nRes = await fetch(N8N_WEBHOOK_PROVISION, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type':  'application/json',
+      'X-Admin-Token': N8N_TOKEN,
+    },
     body:    JSON.stringify({
       hw_id,
       client_name,
-      alias:     alias     || '',
-      direccion: direccion || '',
-      cp:        cp        || '',
-      comunidad: comunidad || '',
-      pais:      pais      || 'España',
+      alias:       alias     || '',
+      direccion:   direccion || '',
+      cp:          cp        || '',
+      comunidad:   comunidad || '',
+      pais:        pais      || 'España',
       assigned_by: assigned_by || userEmail,
-      admin_token: N8N_TOKEN,
     }),
     signal: AbortSignal.timeout(60000),
   }).catch(() => null);
