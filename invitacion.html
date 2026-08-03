@@ -5,13 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Domotekan — Activa tu acceso al panel</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="icon" href="logo.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --green: #1D9E75;
-  --green-light: #E1F5EE;
-  --green-dark: #0F6E56;
+  --green: #F59E0B;
+  --green-light: #FEF3C7;
+  --green-dark: #B45309;
+  --ok: #1D9E75;
+  --ok-light: #E1F5EE;
+  --ok-dark: #0F6E56;
   --red: #D85A30;
   --red-light: #FAECE7;
   --bg: #F7F6F3;
@@ -60,7 +64,7 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 .pw-bar { flex: 1; height: 3px; border-radius: 2px; background: var(--border-strong); transition: background 0.2s; }
 .pw-bar.weak   { background: var(--red); }
 .pw-bar.medium { background: #BA7517; }
-.pw-bar.strong { background: var(--green); }
+.pw-bar.strong { background: var(--ok); }
 
 .btn-primary {
   width: 100%; padding: 11px;
@@ -76,7 +80,7 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
 
 .msg { font-size: 12px; margin-top: 12px; text-align: center; min-height: 18px; line-height: 1.5; }
 .msg.err { color: var(--red); }
-.msg.ok  { color: var(--green-dark); }
+.msg.ok  { color: var(--ok-dark); }
 
 .success-screen, .invalid-screen { text-align: center; }
 .success-icon, .invalid-icon {
@@ -84,7 +88,7 @@ body { display: flex; align-items: center; justify-content: center; min-height: 
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 16px;
 }
-.success-icon { background: var(--green-light); color: var(--green); }
+.success-icon { background: var(--ok-light); color: var(--ok); }
 .invalid-icon { background: var(--red-light); color: var(--red); }
 .success-icon svg, .invalid-icon svg { width: 28px; height: 28px; }
 .success-title, .invalid-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
