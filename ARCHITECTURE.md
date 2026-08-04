@@ -43,6 +43,11 @@ comparten tablas y convenciones.
 | `api/diagnose.js` | Serverless: diagnóstico IA via Claude Haiku. Lee HA states + errors | `/api/diagnose` | **Producción** | Supabase (service key), HA REST API, Anthropic API |
 | `api/my-ip.js` | Serverless: devuelve IP WAN del llamante | `/api/my-ip` | **Producción** | — |
 | `api/_ratelimit.js` | Helper interno (no es ruta). Rate limiter Supabase-backed | — (helper) | **Producción** | Supabase (service key), tabla `rate_limits` |
+| `api/connector-token.js` | Serverless: genera/devuelve el connector_token de una instalación. Solo admin/superadmin. | `/api/connector-token` | **Pendiente despliegue** | Supabase (service key) |
+| `api/heartbeat.js` | Serverless público: verifica hw_id+connector_token, UPSERT en heartbeats | `/api/heartbeat` | **Pendiente despliegue** | Supabase (service key), sql/07 aplicado |
+| `domoconector/domoconector.py` | Script Python del conector. Se descarga desde el panel. | `/domoconector.py` (via rewrite) | **Pendiente despliegue** | Ninguna (stdlib Python 3.7+) |
+| `domoconector/config.json.example` | Plantilla de configuración para el instalador | — (asset local) | **Pendiente despliegue** | — |
+| `domoconector/README.md` | Guía de instalación del conector | — (asset local) | **Pendiente despliegue** | — |
 | `vercel.json` | Rewrites de rutas + headers de seguridad | — | **Producción** | — |
 | `logo.png` | Logo Domotekan | — (asset) | **Producción** | — |
 | `manifest.json` | PWA manifest | — (asset) | **Producción** | — |
@@ -63,6 +68,7 @@ comparten tablas y convenciones.
 
 | Archivo | Qué hace | Estado |
 |---|---|---|
+| `sql/07_connector_token.sql` | Añade `hardware_devices.connector_token` (UNIQUE), `heartbeats.connector_version`, desduplicación de heartbeats, UNIQUE CONSTRAINT `heartbeats_hw_id_unique` | **NO aplicado — ejecutar antes de desplegar Domoconector** |
 | `sql/02_empresas_schema.sql` | Crea tabla `empresas`, añade `empresa_id` FK a `usuarios` y `hardware_devices` | **NO aplicado** |
 | `sql/03_empresas_migracion.sql` | Crea una empresa por cada admin/instalador existente. NO backfilla `hardware_devices` | **NO aplicado** |
 | `sql/04_empresas_rpc.sql` | Reemplaza `crear_invitacion` con límite de 3 empleados, añade `invitaciones_restantes()`, `completar_invitacion` con empresa, `listar_empresas()` | **NO aplicado** |
@@ -77,6 +83,7 @@ comparten tablas y convenciones.
 |---|---|
 | `panel-gestion.domotekan.com/gestion` | `index.html` |
 | `panel-gestion.domotekan.com/register?invite=TOKEN` | `invitacion.html` |
+| `panel-gestion.domotekan.com/domoconector.py` | `domoconector/domoconector.py` (descarga del conector) |
 | `panel-gestion.domotekan.com/` | `panel-estandar.html` |
 
 ### Rutas API (Vercel Serverless)
@@ -88,6 +95,8 @@ comparten tablas y convenciones.
 | `/api/ha-proxy` | `api/ha-proxy.js` | POST |
 | `/api/diagnose` | `api/diagnose.js` | POST |
 | `/api/my-ip` | `api/my-ip.js` | GET |
+| `/api/connector-token` | `api/connector-token.js` | POST |
+| `/api/heartbeat` | `api/heartbeat.js` | POST |
 
 ### Archivos sin ruta definida
 
@@ -581,6 +590,7 @@ Panel muestra el informe con formato markdown
 3. **Borrar `index.html.bak`** → residuo sin valor.
 4. **Decidir qué hacer con `panel-ander.html`** → añadir ruta o gitignore.
 5. **Crear tabla `audit_log` en Supabase** → las llamadas fire-and-forget en hw-provision.js y hw-delete.js fallan silenciosamente sin esta tabla.
+6. **Cerrar anon INSERT/UPDATE en heartbeats** — condición previa: validar que `api/heartbeat.js` funciona en producción (al menos un heartbeat real recibido). Una vez validado, revocar las policies anon de escritura en `heartbeats`. El endpoint usa `SUPABASE_SERVICE_KEY` (bypassa RLS), así que no depende de esas policies. El panel lee con JWT autenticado (`authenticated` role). No hay conector existente que use la anon key. **No hacerlo antes de validar el endpoint para no bloquear una fallback no prevista.**
 
 ### Hacer pronto (bajo riesgo, impacto visible)
 
@@ -610,7 +620,7 @@ Panel muestra el informe con formato markdown
 | Tabla | Quién escribe | Quién lee | Notas |
 |---|---|---|---|
 | `hardware_devices` | n8n (provisionamiento), `index.html` (edición), `api/hw-delete.js` | `api/ha-proxy.js`, `api/diagnose.js`, `index.html` | Central del sistema. Contiene `ha_token` sensible. RLS activo con aislamiento por `empresa_id` (sql/05 + sql/06 aplicados). |
-| `heartbeats` | Conector Python en el HA de cada instalación (no en este repo) | `index.html` (dashboard + ficha) | 1 fila por dispositivo, UPDATE continuo |
+| `heartbeats` | `api/heartbeat.js` (service key, UPSERT por hw_id) | `index.html` (dashboard + ficha) | **Tabla de estado actual, no de histórico.** Exactamente 1 fila por hw_id, actualizada con cada heartbeat. UNIQUE CONSTRAINT `heartbeats_hw_id_unique` en hw_id. El dashboard detecta "online" si `recibido_en` < 7 min. |
 | `usuarios` | `completar_invitacion()` RPC | `index.html` (login + rol), `api/hw-provision.js`, `api/hw-delete.js` | Roles: superadmin, admin, user |
 | `invitaciones` | `crear_invitacion()` RPC | `validar_invitacion()` RPC | Tokens de 5 min, un solo uso |
 | `instalacion_usuarios` | `api/ha-proxy.js` (register_user) | `api/ha-proxy.js` (access check), `panel-estandar.html` | Multi-vivienda |

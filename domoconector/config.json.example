@@ -1,0 +1,6 @@
+{
+  "hw_id": "XXXX-XXXX",
+  "connector_token": "PEGA_AQUI_EL_TOKEN_DEL_PANEL",
+  "heartbeat_url": "https://panel-gestion.domotekan.com/api/heartbeat",
+  "interval_seconds": 120
+}
