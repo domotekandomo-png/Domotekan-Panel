@@ -1370,6 +1370,10 @@ async function getServersWithStats() {
 
 // CHARTS
 async function loadCharts() {
+  // Destroy previous charts first — prevents stale renders when switching users
+  if (chartTrend)   { chartTrend.destroy();   chartTrend   = null; }
+  if (chartServers) { chartServers.destroy(); chartServers = null; }
+
   const { data: hbs } = await sb.from('heartbeats')
     .select('cpu, ram, recibido_en')
     .order('recibido_en', { ascending: false })
@@ -1422,7 +1426,7 @@ async function loadCharts() {
 
   // Bar chart: current resources per server
   const servers = await getServersWithStats();
-  if (!servers.length) return;
+  if (!servers.length) return; // chartServers already destroyed above
 
   if (chartServers) chartServers.destroy();
   chartServers = new Chart(document.getElementById('chart-servers').getContext('2d'), {
