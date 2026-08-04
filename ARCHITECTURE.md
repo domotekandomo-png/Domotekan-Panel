@@ -349,6 +349,94 @@ POST /api/hw-provision → n8n
 
 ---
 
+### Modos de despliegue del Domoconector
+
+Domotekan distingue dos flujos de conexión del conector. **Hoy solo el Modo A está implementado.**
+
+#### Modo A — HA existente (descargable, MVP actual)
+
+Para clientes que ya tienen un Home Assistant instalado y funcionando en casa.
+El instalador descarga los ficheros desde el panel y los copia manualmente al HA del cliente.
+
+```
+[Panel gestión] Instalador → ficha instalación → sección Domoconector
+    ├── "Descargar config.json"    → /api/connector-token genera/devuelve connector_token
+    │                                descarga config-HWID.json pre-rellenado (hw_id, token, url)
+    └── "Descargar domoconector.py" → fichero estático vía /domoconector.py
+    │
+    ▼
+[Instalador] Renombra config-HWID.json → config.json
+             Copia ambos ficheros al HA del cliente (SSH / SFTP / File Editor)
+             Los ubica en: /config/domoconector/
+    │
+    ▼
+[HA del cliente] python3 /config/domoconector/domoconector.py
+    │  Loop cada 120 s:
+    │    Lee config.json → hw_id + connector_token
+    │    POST /api/heartbeat { hw_id, connector_token, cpu, ram, disco, temperatura }
+    ▼
+[Panel gestión] Badge "Domoconector Online" en ficha de instalación
+```
+
+**Qué hace manualmente el instalador:**
+- Copiar los dos ficheros al HA (SSH, SFTP, File Editor o Samba)
+- Configurar el arranque automático (`shell_command` + automation en HA)
+- Instalar `psutil` si quiere métricas de sistema
+
+**Qué viene pre-rellenado en config.json:**
+- `hw_id`, `connector_token`, `heartbeat_url`, `interval_seconds` — el instalador no escribe ningún valor
+
+**Relación con el método antiguo de heartbeat (rest_command + automation en HA):**
+
+| Componente del método viejo | Estado con Modo A |
+|---|---|
+| `secrets.yaml`: `domotekan_connector_token` | ✅ Ya no necesario — el token está en `config.json` |
+| `secrets.yaml`: HA long-lived token (solo para heartbeat) | ✅ Ya no necesario — `domoconector.py` no usa tokens de HA |
+| `configuration.yaml`: sección `rest_command: domotekan_heartbeat` | ✅ Ya no necesario — el heartbeat lo envía Python, no HA |
+| Automatización YAML de heartbeat periódico | ✅ Ya no necesaria — `domoconector.py` tiene su propio loop |
+| `configuration.yaml: http: trusted_proxies: 10.10.0.0/24` | ⚠️ **Sigue siendo necesario** — es para que NGINX del VPS haga reverse proxy a la UI de HA; no tiene relación con el heartbeat |
+
+El conector (Modo A) y el acceso remoto HTTPS via WireGuard/NGINX son **dos sistemas completamente independientes**:
+- El conector manda tráfico saliente (RPi → HTTPS → panel-gestion.domotekan.com). Solo necesita internet.
+- WireGuard/NGINX permite tráfico entrante (VPS → túnel → HA puerto 8123). Requiere `trusted_proxies` y el túnel activo.
+
+---
+
+#### Modo B — Domotekan Box (preinstalado, futuro)
+
+Para clientes que reciben el hardware de Domotekan ya preparado de fábrica.
+La imagen maestra del RPi incluye el conector instalado, con el HW ID del equipo y un `setup_secret` inicial.
+El instalador **no descarga nada** — solo activa el HW ID desde el panel.
+
+```
+[Imagen maestra] RPi arranca con:
+    ├── domoconector.py instalado en /config/domoconector/
+    ├── HW ID hardcodeado en la imagen (ej. 0826-0001)
+    ├── setup_secret de fábrica (distinto del connector_token de producción)
+    └── Estado: esperando activación desde el panel
+    │
+    ▼
+[Panel gestión] Instalador → "Activar instalación" con HW ID
+    │  El sistema asigna connector_token al HW ID en hardware_devices
+    │  El equipo detecta la activación en el siguiente ciclo de heartbeat
+    ▼
+[Domotekan Box] Empieza a enviar heartbeats normales
+    ▼
+[Panel gestión] Badge "Online"
+```
+
+**Diferencias clave respecto al Modo A:**
+- El instalador **no usa los botones "Descargar config.json" ni "Descargar domoconector.py"** — ya están en la imagen
+- El panel solo necesita activar el HW ID; el equipo ya tiene todo lo demás
+- No hay paso de copia SSH ni configuración manual del conector en casa del cliente
+
+**Pendiente de implementar para el Modo B:**
+- Campo `tipo_instalacion` en `hardware_devices` (`ha_existente` | `domotekan_box`) para que la UI distinga los modos
+- Lógica de activación por `setup_secret` en la imagen maestra (el equipo intercambia `setup_secret` por `connector_token` real en el primer arranque)
+- Ocultamiento condicional de los botones de descarga en el panel según `tipo_instalacion`
+
+---
+
 ### Invitación de admin/user
 
 ```
@@ -605,7 +693,9 @@ Panel muestra el informe con formato markdown
 
 ### Hacer cuando haya claridad de producto
 
-7. **Decidir el futuro del panel cliente** → `panel-estandar.html` (HTML simple) vs `domotekan-panel` (Next.js + WebSocket). Son dos implementaciones del mismo concepto.
+7. **Separar modos de despliegue del Domoconector en la UI** → Añadir `tipo_instalacion` (`ha_existente` | `domotekan_box`) en `hardware_devices`. La sección "Domoconector" del panel debe mostrar los botones de descarga solo para `ha_existente`; para `domotekan_box` el equipo ya viene con el conector y solo necesita activación. Ver sección "Modos de despliegue del Domoconector" en los flujos principales.
+
+8. **Decidir el futuro del panel cliente** → `panel-estandar.html` (HTML simple) vs `domotekan-panel` (Next.js + WebSocket). Son dos implementaciones del mismo concepto.
 
 8. **Unificar los proyectos de hotel** → `hoteles` y `guest-cloud` son dos proyectos de gestión hotelera paralelos. Definir cuál avanza y archivar el otro.
 

@@ -1,124 +1,190 @@
-# Domoconector
+# Guía de instalación del Domoconector
 
-Agente de heartbeat para Domotekan. Se instala en el Home Assistant del cliente y envía métricas periódicas (CPU, RAM, disco, temperatura) al panel de gestión.
+**Para instaladores de Domotekan — Home Assistant existente**
 
-## Requisitos
+---
 
-- Python 3.7 o superior
-- Acceso SSH al Home Assistant (addon "SSH & Web Terminal" recomendado)
-- `psutil` opcional: `pip3 install psutil` para métricas de sistema
+## ¿Para qué sirve el Domoconector?
 
-## Instalación
+El Domoconector es un script Python que se ejecuta en el Home Assistant del cliente y envía una señal periódica al panel de gestión de Domotekan.
 
-### 1. Obtener los archivos desde el panel
+Esto permite:
 
-En el panel de gestión → Servidores → clic en la instalación → sección **Domoconector**:
+- Saber si el servidor del cliente está **online u offline** desde el panel
+- Ver métricas básicas en tiempo real: CPU, RAM, disco y temperatura
+- Detectar caídas sin necesidad de acceder remotamente al equipo
 
-1. Clic en **Descargar config.json** → descarga un `config-HWID.json` pre-rellenado
-2. Clic en **Descargar domoconector.py** → descarga el script
+**Lo que el Domoconector NO hace:**
 
-Renombra `config-HWID.json` a `config.json`.
+- **No configura el acceso remoto HTTPS.** Que el panel muestre "Online" no significa que puedas conectarte al Home Assistant. Eso requiere WireGuard + Nginx, que es un sistema separado.
+- **No sustituye a WireGuard.** El Domoconector solo envía una señal de estado. No abre ningún puerto, no crea ningún túnel.
 
-### 2. Copiar al Home Assistant
+---
 
-Conecta por SSH al HA del cliente y copia los archivos a `/config/domoconector/`:
+## ¿Cuándo usar esta guía?
+
+Úsala cuando el cliente ya tiene un **Home Assistant instalado y funcionando** y quieres conectarlo al panel de Domotekan.
+
+> Esta guía **no aplica** a la futura Domotekan Box preconfigurada. En ese caso el conector ya vendrá instalado de fábrica y solo habrá que activar el HW ID desde el panel.
+
+---
+
+## Paso 1 — Descargar los ficheros desde el panel
+
+1. Entra en `panel-gestion.domotekan.com/gestion` con tu usuario de instalador
+2. Ve a **Servidores** y haz clic en la ficha de la instalación del cliente
+3. Desplázate hasta la sección **Domoconector**
+4. Haz clic en **Descargar config.json**
+   - Se descarga un fichero llamado `config-HWID.json` con todos los datos ya rellenos: HW ID, token, URL y el intervalo de envío
+5. Haz clic en **Descargar domoconector.py**
+   - Se descarga el script Python del conector
+
+Antes de continuar, **renombra** `config-HWID.json` a `config.json`.
+
+---
+
+## Paso 2 — Copiar los ficheros al Home Assistant
+
+Conéctate al HA del cliente (por SSH, SFTP, File Editor o Samba) y crea la carpeta del conector:
 
 ```bash
 mkdir -p /config/domoconector
-# Copiar usando scp, SFTP, o el addon File Editor
 ```
 
-Estructura resultante:
+Copia los dos ficheros a esa carpeta:
+
 ```
 /config/domoconector/
   domoconector.py
   config.json
 ```
 
-### 3. Instalar psutil (opcional pero recomendado)
+---
+
+## Paso 3 — Instalar psutil (opcional)
+
+Sin `psutil`, el conector funciona pero no envía métricas de CPU, RAM, disco ni temperatura (aparecen como `—` en el panel).
 
 ```bash
 pip3 install psutil
 ```
 
-En HA OS puede ser necesario usar el entorno de Python del sistema:
+En HA OS puede ser necesario usar:
 
 ```bash
 /usr/bin/python3 -m pip install psutil
 ```
 
-### 4. Probar manualmente
+---
+
+## Paso 4 — Probar manualmente
 
 ```bash
-python3 /config/domoconector/domoconector.py
+cd /config/domoconector
+python3 domoconector.py
 ```
 
-Deberías ver en consola:
+En los primeros segundos deberías ver algo así:
+
 ```
-2026-08-04 12:00:00 [INFO] Domoconector v1.0.0 iniciando...
-2026-08-04 12:00:00 [INFO] HW ID   : 0626-0001
-2026-08-04 12:00:00 [INFO] Heartbeat OK | CPU: 12.3% | RAM: 48.7% | Disco: 22.1% | Temp: 51.0°C
+2026-08-04 10:00:00 [INFO] Domoconector v1.0.0 iniciando...
+2026-08-04 10:00:00 [INFO] HW ID   : 0626-0001
+2026-08-04 10:00:00 [INFO] URL     : https://panel-gestion.domotekan.com/api/heartbeat
+2026-08-04 10:00:00 [INFO] Intervalo: 120s
+2026-08-04 10:00:00 [INFO] Heartbeat OK | CPU: 12.3% | RAM: 48.7% | Disco: 22.1% | Temp: 51.0°C
 ```
 
-Y en el panel de gestión el badge de la instalación cambia a **Online** en menos de 1 minuto.
+Si ves `Heartbeat OK`, el conector funciona. En menos de un minuto el panel mostrará el badge **Online** en la ficha de la instalación.
 
-### 5. Ejecutar en segundo plano (arranque automático)
+Para detenerlo: `Ctrl+C`.
 
-**Opción A — shell_command en HA (recomendada):**
+---
 
-En `/config/configuration.yaml` añadir:
+## Paso 5 — Arranque automático
+
+> **Aviso:** El método siguiente es una solución provisional para el MVP.
+> Si se ejecuta varias veces (por ejemplo, cada vez que HA arranca) puede dejar varios procesos Python activos a la vez.
+> El objetivo a largo plazo es convertir el Domoconector en un **add-on oficial de Home Assistant**, que gestiona el proceso de forma limpia. Por ahora, este método es suficiente para producción controlada.
+
+**Añadir en `/config/configuration.yaml`:**
 
 ```yaml
 shell_command:
   start_domoconector: "nohup python3 /config/domoconector/domoconector.py >> /config/domoconector/domoconector.log 2>&1 &"
 ```
 
-Crear una automatización que lo ejecute al arrancar HA:
+**Añadir la automatización** (en `/config/automations.yaml` o desde la UI de HA):
 
 ```yaml
-automation:
-  - alias: "Iniciar Domoconector"
-    trigger:
-      - platform: homeassistant
-        event: start
-    action:
-      - service: shell_command.start_domoconector
+- alias: "Iniciar Domoconector al arrancar HA"
+  trigger:
+    - platform: homeassistant
+      event: start
+  action:
+    - service: shell_command.start_domoconector
 ```
 
-**Opción B — systemd (si el sistema operativo lo permite):**
+Después de guardar: **Herramientas para desarrolladores → Recargar configuración de YAML**, o reinicia HA.
 
-```ini
-# /etc/systemd/system/domoconector.service
-[Unit]
-Description=Domoconector Domotekan
-After=network.target
+El log queda en `/config/domoconector/domoconector.log`.
 
-[Service]
-ExecStart=/usr/bin/python3 /config/domoconector/domoconector.py
-Restart=always
-RestartSec=30
+---
 
-[Install]
-WantedBy=multi-user.target
-```
+## Paso 6 — Método viejo de heartbeat: qué quitar y qué no tocar
 
-```bash
-systemctl enable domoconector
-systemctl start domoconector
-```
+Si el cliente tenía configurado el heartbeat antiguo (mediante `rest_command` y una automatización en HA), ya puedes eliminar esas partes porque ahora el conector Python lo hace todo.
 
-## Seguridad
+**Puedes eliminar:**
 
-- El `connector_token` identifica únicamente esta instalación. No da acceso a ningún otro sistema.
-- Si el token se compromete, genera uno nuevo desde el panel (borra el existente en `hardware_devices.connector_token` y vuelve a hacer clic en "Descargar config.json").
-- El script no contiene claves globales de Supabase ni de Domotekan.
+- La entrada `domotekan_connector_token` en `secrets.yaml` (el token ahora está en `config.json`)
+- El token de HA que se usaba solo para el heartbeat (si no se usa para otra cosa)
+- La sección `rest_command: domotekan_heartbeat` en `configuration.yaml`
+- La automatización que lanzaba el heartbeat periódicamente
+
+**No toques:**
+
+- `configuration.yaml: http: trusted_proxies: 10.10.0.0/24` — esta línea es necesaria para el acceso remoto HTTPS, no para el heartbeat. Si la eliminas y hay WireGuard configurado, el panel del cliente dejará de funcionar.
+- Cualquier otra configuración relacionada con WireGuard o Nginx.
+
+---
+
+## WireGuard y acceso remoto — son dos sistemas distintos
+
+| Sistema | Para qué sirve | ¿Necesita el otro? |
+|---|---|---|
+| **Domoconector** | Señal de estado online/offline + métricas | No necesita WireGuard |
+| **WireGuard + Nginx** | Acceso remoto HTTPS al panel del cliente | No necesita el Domoconector |
+
+El Domoconector envía tráfico **saliente** desde el RPi hacia internet (`panel-gestion.domotekan.com`). Solo necesita que el equipo tenga conexión a internet.
+
+WireGuard crea un túnel que permite tráfico **entrante** desde el VPS hasta el HA del cliente (puerto 8123). Eso es lo que hace funcionar la URL `clienteXXXX.domotekan.com` y el botón "Conectar al servidor" del panel de gestión.
+
+**Hoy, la instalación de WireGuard sigue siendo un proceso manual.** El conector no lo automatiza ni lo sustituye.
+
+---
+
+## Checklist final
+
+Antes de dar la instalación por terminada, verifica cada punto:
+
+- [ ] `/config/domoconector/config.json` existe y tiene `hw_id`, `connector_token`, `heartbeat_url`
+- [ ] `/config/domoconector/domoconector.py` existe
+- [ ] `python3 domoconector.py` arranca sin errores
+- [ ] El log muestra `Heartbeat OK` en los primeros 10 segundos
+- [ ] El panel de gestión muestra el badge **Online** en la ficha de la instalación
+- [ ] Prueba de token malo: si modificas `connector_token` en `config.json` con un valor inventado, el log debe mostrar `Error HTTP 401`
+- [ ] La automatización de arranque está configurada y HA la carga sin errores
+- [ ] Si el cliente tiene acceso remoto HTTPS: comprobar que `trusted_proxies` sigue en `configuration.yaml` y que la URL del cliente responde
+
+---
 
 ## Solución de problemas
 
-| Problema | Causa probable | Solución |
+| Síntoma | Causa probable | Solución |
 |---|---|---|
-| Error HTTP 401 | Token o hw_id incorrecto | Descarga de nuevo el config.json desde el panel |
-| Error HTTP 403 | Instalación inactiva | El estado en hardware_devices no es 'active' |
-| Error de red | Sin conectividad | Verificar que el RPi tiene acceso a internet |
-| Métricas null | psutil no instalado | `pip3 install psutil` |
-| Panel no actualiza | < 7 min desde primer HB | Esperar el ciclo (120s por defecto) |
+| `Error HTTP 401` | Token o HW ID incorrecto | Descarga de nuevo el `config.json` desde el panel |
+| `Error HTTP 403` | Instalación marcada como inactiva | Verificar `status` en la ficha del panel |
+| `Error de red` | Sin conexión a internet | Verificar que el RPi tiene salida a internet |
+| Métricas aparecen como `—` | `psutil` no instalado | `pip3 install psutil` |
+| Panel sigue mostrando Offline | Menos de 7 minutos desde el primer heartbeat | Esperar al siguiente ciclo (120 s por defecto) |
+| URL remota del cliente no responde | WireGuard no configurado o `trusted_proxies` eliminado | Revisar configuración WireGuard y `configuration.yaml` |
