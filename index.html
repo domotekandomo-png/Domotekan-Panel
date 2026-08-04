@@ -1329,7 +1329,10 @@ function serverRow(s) {
 // ==========================================
 async function getServersWithStats() {
   const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
-  const baseQuery = sb.from('hardware_devices').select('*').order('id', { ascending: false });
+  let baseQuery = sb.from('hardware_devices').select('*').order('id', { ascending: false });
+  if (currentProfile?.rol !== 'superadmin' && currentProfile?.empresa_id) {
+    baseQuery = baseQuery.eq('empresa_id', currentProfile.empresa_id);
+  }
   const { data: servers, error: errSrv } = await Promise.race([baseQuery, timeout]).catch(e => ({ data: null, error: e }));
   if (errSrv) console.error('[getServersWithStats] hardware_devices error:', errSrv);
 
@@ -1476,7 +1479,10 @@ async function loadHardware() {
   tbody.innerHTML = '<tr><td colspan="6" class="loading">Cargando...</td></tr>';
 
   const isSuperadminHw = currentProfile?.rol === 'superadmin';
-  const hwQuery = sb.from('hardware_devices').select('*').order('id', { ascending: false });
+  let hwQuery = sb.from('hardware_devices').select('*').order('id', { ascending: false });
+  if (!isSuperadminHw && currentProfile?.empresa_id) {
+    hwQuery = hwQuery.eq('empresa_id', currentProfile.empresa_id);
+  }
   const [{ data: rows, error }, { data: hbs }, { data: empresas }] = await Promise.all([
     hwQuery,
     sb.from('heartbeats').select('hw_id, recibido_en, cpu, ram, disco, temperatura').not('hw_id', 'is', null).order('recibido_en', { ascending: false }),
