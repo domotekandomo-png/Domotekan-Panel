@@ -1247,7 +1247,7 @@ function statStr(val) {
 
 function isOnline(ts) {
   if (!ts) return false;
-  return (Date.now() - new Date(ts).getTime()) < 7 * 60 * 1000;
+  return (Date.now() - new Date(ts).getTime()) < 30 * 60 * 1000;
 }
 
 // BUSCADOR EN TIEMPO REAL
@@ -2005,7 +2005,7 @@ async function loadAlerts() {
 
   servers.forEach(s => {
     if (!isOnline(s.ultimo_heartbeat)) {
-      alerts.push({ servidor: s.nombre, tipo: 'offline', detalle: 'Sin conexión (> 7 min)', cuando: s.ultimo_heartbeat });
+      alerts.push({ servidor: s.nombre, tipo: 'offline', detalle: 'Sin conexión (> 30 min)', cuando: s.ultimo_heartbeat });
     } else {
       if ((s.cpu_last||0) > 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `CPU al ${Math.round(s.cpu_last)}%`, cuando: s.ultimo_heartbeat });
       if ((s.ram_last||0) > 80) alerts.push({ servidor: s.nombre, tipo: 'warn', detalle: `RAM al ${Math.round(s.ram_last)}%`, cuando: s.ultimo_heartbeat });
