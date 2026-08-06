@@ -23,10 +23,18 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Método no permitido' });
 
+  const body = req.body || {};
   const {
-    hw_id, connector_token, connector_version,
+    connector_version,
     cpu, ram, disco, temperatura,
-  } = req.body || {};
+  } = body;
+
+  // Compatibilidad: connector_token puede venir en el body o en la cabecera
+  // x-domotekan-token (instalaciones antiguas tipo rest_command de HA, que no
+  // pueden meter !secret dentro de una plantilla Jinja del payload).
+  // hw_id acepta también hwId (nombre usado por el conector legacy).
+  const connector_token = body.connector_token || req.headers['x-domotekan-token'];
+  const hw_id = body.hw_id || body.hwId;
 
   if (!hw_id || !connector_token)
     return res.status(400).json({ error: 'Faltan hw_id y connector_token' });
